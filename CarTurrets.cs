@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Modular Car Turrets", "WhiteThunder", "1.0.0")]
+    [Info("Modular Car Turrets", "WhiteThunder", "1.0.1")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -348,7 +348,7 @@ namespace Oxide.Plugins
 
         private bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer)
         {
-            object hookResult = Interface.CallHook("OnCarAutoTurretDeploy", basePlayer, vehicleModule);
+            object hookResult = Interface.CallHook("OnCarAutoTurretDeploy", vehicleModule, basePlayer);
             return hookResult is bool && (bool)hookResult == false;
         }
 

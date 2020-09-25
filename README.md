@@ -165,7 +165,7 @@ The return value will be the newly deployed auto turret, or `null` if the auto t
 Note: The `BasePlayer` parameter may be null if another plugin initiated the deployment without specifying a player.
 
 ```csharp
-OnCarAutoTurretDeploy(BaseVehicleModule module, BasePlayer player)
+object OnCarAutoTurretDeploy(BaseVehicleModule module, BasePlayer player)
 ```
 
 #### OnEntityBuilt
