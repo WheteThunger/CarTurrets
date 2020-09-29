@@ -19,6 +19,7 @@ Notes:
 
 - Compatible with plugins such as [Turret Manager](https://umod.org/plugins/turret-manager) that automatically fill turrets with weapons and ammo when deployed.
 - Compatible with [Vehicle Deployed Locks](https://umod.org/plugins/vehicle-deployed-locks). Players who do not have access to the lock cannot flip the switch or authorize themselves to the turret. However, for the time being, other plugins that deploy switches to turrets will likely enable some unauthorized players to flip them on anyway (I'm working on getting those updated).
+- **(Recommended)** [Better Turret Aim](https://umod.org/plugins/better-turret-aim) allows turrets to aim at their current target more quickly. Very useful for vehicle turrets to be able to hit targets while the vehicle is moving. Has an option to only apply to vehicle turrets if desired.
 
 ## Commands
 
