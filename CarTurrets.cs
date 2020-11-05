@@ -662,6 +662,9 @@ namespace Oxide.Plugins
 
         internal class Configuration : SerializableConfiguration
         {
+            [JsonProperty("DefaultLimitPerCar")]
+            public int DefaultLimitPerCar = 4;
+
             [JsonProperty("AutoTurretPositionByModule")]
             public Dictionary<string, Vector3> ModulePositions = new Dictionary<string, Vector3>()
             {
@@ -678,9 +681,6 @@ namespace Oxide.Plugins
                 ["vehicle.2mod.fuel.tank"] = new Vector3(0, 1.28f, -0.85f),
                 ["vehicle.2mod.passengers"] = new Vector3(0, 1.4f, -0.9f)
             };
-
-            [JsonProperty("DefaultLimitPerCar")]
-            public int DefaultLimitPerCar = 4;
         }
 
         private Configuration GetDefaultConfig() => new Configuration();

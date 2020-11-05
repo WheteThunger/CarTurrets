@@ -1,25 +1,24 @@
-**Modular Car Turrets** allows players to deploy auto turrets to modular cars.
+## Features
+
+- Allow players to deploy auto turrets onto modular cars, at most one per module.
+- Limit max turrets per car, optionally using the permissions of the car owner.
+- Restrict which modules players can deploy turrets to, using permissions.
+- Configurable turret position for each module type.
+
+#### Implementation details
+
+- Turrets deployed to the front of the car automatically face forwards, while turrets deployed to the back automatically face backwards. If the default rotation isn't desirable, you can rotate the auto turret like normal once it's deployed.
+- Moving a module item between slots will automatically move the turret without rotating it.
+- Moving a module item from a car's inventory to your inventory, or dropping it from the car's inventory, will automatically add an auto turret item to your inventory with condition matching the auto turret's health. This does not require permissions.
+- Turrets deployed to vehicle modules will not target NPC players or non-hostile players who are in safe zones.
+
+## How To Use
 
 There are two ways to deploy an auto turret to a car module.
 - By using the `carturret` command while aiming at a particular module
 - By clicking and dragging an auto turret item onto a vehicle module item in a car's inventory while editing a car at a lift
 
 Deploying an auto turret to a car module will consume an auto turret item from the player's inventory. Deploying auto turrets can be free for players with additional permissions, but an auto turret will still be required in their inventory in order to use the drag-and-drop method.
-
-Notes:
-- The maximum number of auto turrets allowed on a single car is configurable. Cars owned by players with additonal permissions can have higher limits than the configured default. However, the limit may not exceed the number of modules on the car as there is a hard limit of one auto turret per module.
-- Each module type has a separate permission for whether a player can deploy an auto turret to it.
-- Each module type has a configurable position for where the turret will be deployed.
-- Turrets deployed to the front of the car automatically face forwards, while turrets deployed to the back automatically face backwards. If the default rotation isn't desirable, you can rotate the auto turret like normal once it's deployed.
-- Moving a module item between slots will automatically move the turret without rotating it.
-- Moving a module item from a car's inventory to your inventory, or dropping it from the car's inventory, will automatically add an auto turret item to your inventory with condition matching the auto turret's health. This does not require permissions.
-- Auto turrets deployed to vehicle modules will not target NPC players or non-hostile players who are in safe zones.
-
-## Plugin Compatibility
-
-- Compatible with plugins such as [Turret Loadouts](https://umod.org/plugins/turret-loadouts) and [Turret Manager](https://umod.org/plugins/turret-manager) that automatically fill turrets with weapons and ammo when deployed.
-- Compatible with [Vehicle Deployed Locks](https://umod.org/plugins/vehicle-deployed-locks). Players who do not have access to the lock cannot flip the switch or authorize themselves to the turret. However, for the time being, other plugins that deploy switches to turrets will likely enable some unauthorized players to flip them on anyway (I'm working on getting those updated).
-- **(Recommended)** [Better Turret Aim](https://umod.org/plugins/better-turret-aim) allows turrets to aim at their current target more quickly. Very useful for vehicle turrets to be able to hit targets while the vehicle is moving. Has an option to only apply to vehicle turrets if desired.
 
 ## Commands
 
@@ -58,6 +57,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 
 ```json
 {
+  "DefaultLimitPerCar": 4,
   "AutoTurretPositionByModule": {
     "vehicle.1mod.cockpit": {
       "x": 0.0,
@@ -119,14 +119,13 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
       "y": 1.4,
       "z": -0.9
     }
-  },
-  "DefaultLimitPerCar": 4
+  }
 }
 ```
 
-- `AutoTurretPositionByModule` -- For each module type (based on item short name), these values determine how an auto turret will be positioned relative to its parent module. These defaults were tested with modules in various positions with turrets facing forwards and backwards. Some modules, especially the small engine cockpit module, simply don't have an ideal position due to having a very small roof, but careful placement of modules and turrets can avoid any visual issues.
 - `DefaultLimitPerCar` -- The maximum number of auto turrets allowed per car. Cars owned by players with additional permissions may have a higher value. Regardless of this value, the number of auto turrets cannot exceed the number of modules on the car.
   - Note: You can also reduce the practical limit of auto turrets per car by restricting which modules they can be deployed to. For example, if you only allow auto turrets to be deployed to flatbed modules, a 2-socket car can have at most one auto turret (assuming it's driveable). For longer cars, players will have to choose between more turrets and other utilities. You can also restrict turrets to only 2-socket modules.
+- `AutoTurretPositionByModule` -- For each module type (based on item short name), these values determine how an auto turret will be positioned relative to its parent module. These defaults were tested with modules in various positions with turrets facing forwards and backwards. Some modules, especially the small engine cockpit module, simply don't have an ideal position due to having a very small roof, but careful placement of modules and turrets can avoid any visual issues.
 
 ## Localization
 
@@ -145,6 +144,12 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 }
 ```
 
+## Plugin Compatibility
+
+- Compatible with plugins such as [Turret Loadouts](https://umod.org/plugins/turret-loadouts) and [Turret Manager](https://umod.org/plugins/turret-manager) that automatically fill turrets with weapons and ammo when deployed.
+- Compatible with [Vehicle Deployed Locks](https://umod.org/plugins/vehicle-deployed-locks). Players who do not have access to the lock cannot flip the switch or authorize themselves to the turret.
+- (**Recommended**) [Better Turret Aim](https://umod.org/plugins/better-turret-aim) allows turrets to aim at their current target more quickly. Very useful for vehicle turrets to be able to hit targets while the vehicle is moving. Has an option to only apply to vehicle turrets if desired.
+
 ## Developer API
 
 #### API_DeployAutoTurret
@@ -161,7 +166,7 @@ The return value will be the newly deployed auto turret, or `null` if the auto t
 - The module type is unsupported (i.e., not defined in the config)
 - The specified module already has a turret on it
 
-## Hooks
+## Developer Hooks
 
 #### OnCarAutoTurretDeploy
 
