@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Modular Car Turrets", "WhiteThunder", "1.0.1")]
+    [Info("Modular Car Turrets", "WhiteThunder", "1.0.2")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -673,6 +673,7 @@ namespace Oxide.Plugins
                 ["vehicle.1mod.passengers.armored"] = new Vector3(0, 1.38f, -0.31f),
                 ["vehicle.1mod.rear.seats"] = new Vector3(0, 1.4f, -0.12f),
                 ["vehicle.1mod.storage"] = new Vector3(0, 0.61f, 0),
+                ["vehicle.1mod.taxi"] = new Vector3(0, 1.38f, -0.13f),
                 ["vehicle.2mod.flatbed"] = new Vector3(0, 0.06f, -0.7f),
                 ["vehicle.2mod.fuel.tank"] = new Vector3(0, 1.28f, -0.85f),
                 ["vehicle.2mod.passengers"] = new Vector3(0, 1.4f, -0.9f)

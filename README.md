@@ -40,6 +40,7 @@ As an alternative to the `allmodules` permission, you can grant permissions by m
 - `carturrets.vehicle.1mod.passengers.armored`
 - `carturrets.vehicle.1mod.rear.seats`
 - `carturrets.vehicle.1mod.storage`
+- `carturrets.vehicle.1mod.taxi`
 - `carturrets.vehicle.2mod.flatbed`
 - `carturrets.vehicle.2mod.fuel.tank`
 - `carturrets.vehicle.2mod.passengers`
@@ -97,6 +98,11 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
       "x": 0.0,
       "y": 0.61,
       "z": 0.0
+    },
+    "vehicle.1mod.taxi": {
+      "x": 0.0,
+      "y": 1.38,
+      "z": -0.13
     },
     "vehicle.2mod.flatbed": {
       "x": 0.0,
