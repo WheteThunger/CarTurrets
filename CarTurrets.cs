@@ -20,8 +20,6 @@ namespace Oxide.Plugins
         [PluginReference]
         Plugin VehicleDeployedLocks;
 
-        private Configuration PluginConfig;
-
         private const string Permission_DeployCommand = "carturrets.deploy.command";
         private const string Permission_DeployInventory = "carturrets.deploy.inventory";
         private const string Permission_Free = "carturrets.free";
@@ -43,6 +41,8 @@ namespace Oxide.Plugins
         private readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
         private readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
 
+        private Configuration pluginConfig;
+
         #endregion
 
         #region Hooks
@@ -58,7 +58,7 @@ namespace Oxide.Plugins
             permission.RegisterPermission(Permission_Limit_4, this);
 
             permission.RegisterPermission(Permission_AllModules, this);
-            foreach (var moduleItemShortName in PluginConfig.ModulePositions.Keys)
+            foreach (var moduleItemShortName in pluginConfig.ModulePositions.Keys)
                 permission.RegisterPermission(GetAutoTurretPermission(moduleItemShortName), this);
         }
 
@@ -513,7 +513,7 @@ namespace Oxide.Plugins
 
         private int GetCarAutoTurretLimit(ModularCar car)
         {
-            var defaultLimit = PluginConfig.DefaultLimitPerCar;
+            var defaultLimit = pluginConfig.DefaultLimitPerCar;
 
             if (car.OwnerID == 0)
                 return defaultLimit;
@@ -605,7 +605,7 @@ namespace Oxide.Plugins
             Interface.CallHook("OnEntityBuilt", turretItem.GetHeldEntity(), autoTurret.gameObject);
 
         private bool TryGetAutoTurretPositionForModule(BaseVehicleModule vehicleModule, out Vector3 position) =>
-            PluginConfig.ModulePositions.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out position);
+            pluginConfig.ModulePositions.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out position);
 
         private AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
         {
@@ -682,6 +682,12 @@ namespace Oxide.Plugins
             public int DefaultLimitPerCar = 4;
         }
 
+        private Configuration GetDefaultConfig() => new Configuration();
+
+        #endregion
+
+        #region Configuration Boilerplate
+
         internal class SerializableConfiguration
         {
             public string ToJson() => JsonConvert.SerializeObject(this);
@@ -711,7 +717,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private bool MaybeUpdateConfig(Configuration config)
+        private bool MaybeUpdateConfig(SerializableConfiguration config)
         {
             var currentWithDefaults = config.ToDictionary();
             var currentRaw = Config.ToDictionary(x => x.Key, x => x.Value);
@@ -751,20 +757,20 @@ namespace Oxide.Plugins
             return changed;
         }
 
-        protected override void LoadDefaultConfig() => PluginConfig = new Configuration();
+        protected override void LoadDefaultConfig() => pluginConfig = GetDefaultConfig();
 
         protected override void LoadConfig()
         {
             base.LoadConfig();
             try
             {
-                PluginConfig = Config.ReadObject<Configuration>();
-                if (PluginConfig == null)
+                pluginConfig = Config.ReadObject<Configuration>();
+                if (pluginConfig == null)
                 {
                     throw new JsonException();
                 }
 
-                if (MaybeUpdateConfig(PluginConfig))
+                if (MaybeUpdateConfig(pluginConfig))
                 {
                     LogWarning("Configuration appears to be outdated; updating and saving");
                     SaveConfig();
@@ -780,7 +786,7 @@ namespace Oxide.Plugins
         protected override void SaveConfig()
         {
             Log($"Configuration changes saved to {Name}.json");
-            Config.WriteObject(PluginConfig, true);
+            Config.WriteObject(pluginConfig, true);
         }
 
         #endregion
