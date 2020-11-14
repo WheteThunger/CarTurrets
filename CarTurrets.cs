@@ -239,7 +239,7 @@ namespace Oxide.Plugins
             });
         }
 
-        private object OnSwitchToggle(ElectricSwitch electricSwitch, BasePlayer basePlayer)
+        private object OnSwitchToggled(ElectricSwitch electricSwitch)
         {
             var autoTurret = GetSwitchTurret(electricSwitch);
             if (autoTurret == null) return null;
@@ -247,11 +247,7 @@ namespace Oxide.Plugins
             var vehicleModule = GetParentVehicleModule(autoTurret);
             if (vehicleModule == null) return null;
 
-            // Since there is currently no OnSwitchToggle-post hook, have to call plugin specifically for compatibility
-            if (!CanAccessVehicle(vehicleModule.Vehicle, basePlayer, provideFeedback: false)) return false;
-            
-            autoTurret.SetIsOnline(!electricSwitch.IsOn());
-            if (autoTurret.IsOn())
+            if (electricSwitch.IsOn())
                 autoTurret.InitiateStartup();
             else
                 autoTurret.InitiateShutdown();
