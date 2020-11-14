@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Network;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Oxide.Core;
@@ -224,7 +225,9 @@ namespace Oxide.Plugins
             NextTick(() =>
             {
                 if (car == null)
+                {
                     autoTurret.Kill();
+                }
                 else
                 {
                     var newModule = car.GetModuleForItem(moduleItem);
@@ -366,11 +369,11 @@ namespace Oxide.Plugins
                 var vehicleModule = GetParentVehicleModule(autoTurret);
                 if (vehicleModule == null) continue;
 
-                RemoveColliderProtection(autoTurret);
+                RemoveProblemComponents(autoTurret);
 
                 var turretSwitch = autoTurret.GetComponentInChildren<ElectricSwitch>();
                 if (turretSwitch != null)
-                    RemoveColliderProtection(turretSwitch);
+                    RemoveProblemComponents(turretSwitch);
             }
         }
 
@@ -615,7 +618,7 @@ namespace Oxide.Plugins
             autoTurret.SetFlag(BaseEntity.Flags.Reserved8, true);
             autoTurret.SetParent(vehicleModule);
             autoTurret.OwnerID = ownerId;
-            RemoveColliderProtection(autoTurret);
+            RemoveProblemComponents(autoTurret);
             autoTurret.Spawn();
             autoTurret.SetHealth(autoTurret.MaxHealth() * conditionFraction);
             AttachTurretSwitch(autoTurret);
@@ -627,13 +630,13 @@ namespace Oxide.Plugins
 
         private ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
         {
-            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, TurretSwitchPosition, TurretSwitchRotation) as ElectricSwitch;
+            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
             if (turretSwitch == null) return null;
 
             turretSwitch.pickup.enabled = false;
-            turretSwitch.SetParent(autoTurret);
-            RemoveColliderProtection(turretSwitch);
+            RemoveProblemComponents(turretSwitch);
             turretSwitch.Spawn();
+            turretSwitch.SetParent(autoTurret, true);
 
             return turretSwitch;
         }
@@ -641,11 +644,12 @@ namespace Oxide.Plugins
         private Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule) =>
             vehicleModule.FirstSocketIndex + 1 > (car.TotalSockets + 1) / 2 ? TurretBackwardRotation : Quaternion.identity;
 
-        private void RemoveColliderProtection(BaseEntity ent)
+        private void RemoveProblemComponents(BaseEntity ent)
         {
             foreach (var meshCollider in ent.GetComponentsInChildren<MeshCollider>())
                 UnityEngine.Object.DestroyImmediate(meshCollider);
 
+            UnityEngine.Object.DestroyImmediate(ent.GetComponent<DestroyOnGroundMissing>());
             UnityEngine.Object.DestroyImmediate(ent.GetComponent<GroundWatch>());
         }
 
