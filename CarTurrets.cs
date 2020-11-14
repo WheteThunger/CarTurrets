@@ -270,6 +270,18 @@ namespace Oxide.Plugins
             return null;
         }
 
+        // Prevent damage to turret switches on cars
+        private object OnEntityTakeDamage(ElectricSwitch electricSwitch)
+        {
+            var autoTurret = GetSwitchTurret(electricSwitch);
+            if (autoTurret == null) return null;
+
+            var vehicleModule = GetParentVehicleModule(autoTurret);
+            if (vehicleModule == null) return null;
+
+            return false;
+        }
+
         #endregion
 
         #region API
