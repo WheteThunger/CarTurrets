@@ -381,7 +381,10 @@ namespace Oxide.Plugins
 
                 var turretSwitch = autoTurret.GetComponentInChildren<ElectricSwitch>();
                 if (turretSwitch != null)
+                {
+                    turretSwitch.pickup.enabled = false;
                     RemoveProblemComponents(turretSwitch);
+                }
             }
         }
 
