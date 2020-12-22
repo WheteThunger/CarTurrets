@@ -447,8 +447,7 @@ namespace Oxide.Plugins
         private bool VerifyCarHasAutoTurretCapacity(IPlayer player, ModularCar car, bool replyInChat = false)
         {
             var limit = GetCarAutoTurretLimit(car);
-            var turretCount = car.GetComponentsInChildren<AutoTurret>().Length;
-            if (turretCount < limit) return true;
+            if (GetCarTurretCount(car) < limit) return true;
 
             if (replyInChat)
                 ChatMessage(player.Object as BasePlayer, "Deploy.Error.TurretLimit", limit);
@@ -571,11 +570,31 @@ namespace Oxide.Plugins
             permission.UserHasPermission(userId, Permission_AllModules) ||
             permission.UserHasPermission(userId, GetAutoTurretPermissionForModule(vehicleModule));
 
-        private AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule) =>
-            vehicleModule.GetComponentInChildren<AutoTurret>();
+        private int GetCarTurretCount(ModularCar car)
+        {
+            var numTurrets = 0;
+            foreach (var module in car.AttachedModuleEntities)
+            {
+                var turret = GetModuleAutoTurret(module);
+                if (turret != null)
+                    numTurrets++;
+            }
+            return numTurrets;
+        }
 
-        private BaseVehicleModule GetParentVehicleModule(BaseEntity autoTurret) =>
-            autoTurret.GetParentEntity() as BaseVehicleModule;
+        private AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule)
+        {
+            for (var i = 0; i < vehicleModule.children.Count; i++)
+            {
+                var turret = vehicleModule.children[i] as AutoTurret;
+                if (turret != null)
+                    return turret;
+            }
+            return null;
+        }
+
+        private BaseVehicleModule GetParentVehicleModule(BaseEntity entity) =>
+            entity.GetParentEntity() as BaseVehicleModule;
 
         private AutoTurret GetSwitchTurret(ElectricSwitch electricSwitch) =>
             electricSwitch.GetParentEntity() as AutoTurret;
