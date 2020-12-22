@@ -5,7 +5,7 @@
 - Restrict which modules players can deploy turrets to, using permissions.
 - Configurable turret position for each module type.
 
-#### Implementation details
+#### Notes
 
 - Turrets deployed to the front of the car automatically face forwards, while turrets deployed to the back automatically face backwards. If the default rotation isn't desirable, you can rotate the auto turret like normal once it's deployed.
 - Moving a module item between slots will automatically move the turret without rotating it.
@@ -15,10 +15,10 @@
 ## How To Use
 
 There are two ways to deploy an auto turret to a car module.
-- By using the `carturret` command while aiming at a particular module
-- By clicking and dragging an auto turret item onto a vehicle module item in a car's inventory while editing a car at a lift
+- Aim at a car module and use the `carturret` command
+- While editing a car at a lift, click and drag an auto turret item onto one of the car's modules
 
-Deploying an auto turret to a car module will consume an auto turret item from the player's inventory. Deploying auto turrets can be free for players with additional permissions, but an auto turret will still be required in their inventory in order to use the drag-and-drop method.
+Deploying an auto turret to a car module will consume an auto turret item from the player's inventory. Deploying turrets can be free for players with additional permissions, but an auto turret will still be required in their inventory in order to use the drag-and-drop method.
 
 ## Commands
 
@@ -148,7 +148,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 
 - Compatible with plugins such as [Turret Loadouts](https://umod.org/plugins/turret-loadouts) and [Turret Manager](https://umod.org/plugins/turret-manager) that automatically fill turrets with weapons and ammo when deployed.
 - Compatible with [Vehicle Deployed Locks](https://umod.org/plugins/vehicle-deployed-locks). Players who do not have access to the lock cannot flip the switch or authorize themselves to the turret.
-- (**Recommended**) [Better Turret Aim](https://umod.org/plugins/better-turret-aim) allows turrets to aim at their current target more quickly. Very useful for vehicle turrets to be able to hit targets while the vehicle is moving. Has an option to only apply to vehicle turrets if desired.
+- **Recommended:** [Better Turret Aim](https://umod.org/plugins/better-turret-aim) allows turrets to aim at their current target more quickly. Very useful for vehicle turrets to be able to hit targets while the vehicle is moving. Has an option to only apply to vehicle turrets if desired.
 
 ## Developer API
 
