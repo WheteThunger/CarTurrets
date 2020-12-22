@@ -3,13 +3,16 @@
 - Allow players to deploy auto turrets onto modular cars, at most one per module.
 - Limit max turrets per car, optionally using the permissions of the car owner.
 - Restrict which modules players can deploy turrets to, using permissions.
+- Automatically add turrets to cars when they spawn.
+  - Configurable chance to spawn a turret for each module type.
+  - Can apply to natural spawns along the road or all car spawns, optionally using the permssions of the car owner.
 - Configurable turret position for each module type.
 
 #### Notes
 
 - Turrets deployed to the front of the car automatically face forwards, while turrets deployed to the back automatically face backwards. If the default rotation isn't desirable, you can rotate the auto turret like normal once it's deployed.
 - Moving a module item between slots will automatically move the turret without rotating it.
-- Moving a module item from a car's inventory to your inventory, or dropping it from the car's inventory, will automatically add an auto turret item to your inventory (if the module had a turret) with condition matching the auto turret's health. This does not require permissions.
+- Moving a module item from a car's inventory to your inventory, or dropping it from the car's inventory, will automatically add an auto turret item to your inventory (if the module had a turret) with condition matching the auto turret's health, unless the `EnableTurretPickup` configuration option is `false`.
 - Turrets deployed to vehicle modules will not target NPC players or non-hostile players who are in safe zones.
 
 ## How To Use
@@ -28,7 +31,9 @@ Deploying an auto turret to a car module will consume an auto turret item from t
 
 - `carturrets.deploy.command` -- Allows the player to use the `carturret` command. Note: The player also requires module-specific permissions for that command to work.
 - `carturrets.deploy.inventory` -- Allows the player to deploy an auto turret to a vehicle module by clicking and dragging an auto turret item onto a vehicle module item in a car's inventory while editing the car at a lift. Note: The player also requires module-specific permissions for this to work.
-- `carturrets.allmodules` -- Allows the player to deploy an auto turret to all module types.
+- `carturrets.spawnwithcar` -- Cars owned by players with this permission will spawn with turrets automatically added to each module they have permission to, up to the limit they are allowed. The chance for each module to spawn with a turret is determined by the plugin configuration under `SpawnWithCar->SpawnChanceByModule`.
+  - Only applicable if the plugin configuration for `SpawnWithCar->OtherCarSpawns->Enabled` is `true`, and only necessary if `SpawnWithCar->OtherCarSpawns->RequirePermission` is `true`.
+- `carturrets.allmodules` -- Allows the player to deploy turrets to all module types.
 
 As an alternative to the `allmodules` permission, you can grant permissions by module type (these are generated from the config):
 - `carturrets.vehicle.1mod.cockpit`
@@ -59,6 +64,29 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 {
   "DefaultLimitPerCar": 4,
   "EnableTurretPickup": true,
+  "SpawnWithCar": {
+    "NaturalCarSpawns": {
+      "Enabled": false
+    },
+    "OtherCarSpawns": {
+      "Enabled": false,
+      "RequirePermission": false
+    },
+    "TurretChanceByModule": {
+      "vehicle.1mod.cockpit": 0,
+      "vehicle.1mod.cockpit.armored": 0,
+      "vehicle.1mod.cockpit.with.engine": 0,
+      "vehicle.1mod.engine": 0,
+      "vehicle.1mod.flatbed": 0,
+      "vehicle.1mod.passengers.armored": 0,
+      "vehicle.1mod.rear.seats": 0,
+      "vehicle.1mod.storage": 0,
+      "vehicle.1mod.taxi": 0,
+      "vehicle.2mod.flatbed": 0,
+      "vehicle.2mod.fuel.tank": 0,
+      "vehicle.2mod.passengers": 0
+    }
+  },
   "AutoTurretPositionByModule": {
     "vehicle.1mod.cockpit": {
       "x": 0.0,
@@ -127,6 +155,13 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 - `DefaultLimitPerCar` -- The maximum number of auto turrets allowed per car. Cars owned by players with additional permissions may have a higher value. Regardless of this value, the number of auto turrets cannot exceed the number of modules on the car.
   - Note: You can also reduce the practical limit of auto turrets per car by restricting which modules they can be deployed to. For example, if you only allow auto turrets to be deployed to flatbed modules, a 2-socket car can have at most one auto turret (assuming it's driveable). For longer cars, players will have to choose between more turrets and other utilities. You can also restrict turrets to only 2-socket modules.
 - `EnableTurretPickup` (`true` or `false`) -- While `false`, car turrets cannot be picked up with a hammer or with the RemoverTool pugin, and removing a module from a car will destroy the turret without adding an auto turret item to the player inventory.
+- `SpawnWithCar` -- Settings for automatically adding turrets to cars when they spawn.
+  - `NaturalCarSpawns`
+    - `Enabled` (`true` or `false`) -- While `true`, cars that spawn naturally along roads will automatically have turrets added to them, up to the limit determined by `DefaultLimitPerCar`, and according to the chances in `SpawnChanceByModule`.
+  - `OtherCarSpawns`.
+    - `Enabled` (`true` or `false`) -- While `true`, cars spawned by plugins (such as [Spawn Modular Car](https://umod.org/plugins/spawn-modular-car) or Vehicle Airdrops) will have turrets added to them automatically, up to the limit determined by `DefaultLimitPerCar` or the permissions of the car owner if applicable, and according to the chances in `SpawnChanceByModule`.
+    - `RequirePermission` (`true` or `false`) -- While `true`, cars spawned by plugins will only have turrets added to them if the car is owned by a player with the `carturrets.spawnwithcar` permission.
+  - `SpawnChanceByModule` -- For each module type (based on item short name), these values determine the percent chance (`0` - `100`) that modules of that type will automatically have a turret added to them when the car spawns.
 - `AutoTurretPositionByModule` -- For each module type (based on item short name), these values determine how an auto turret will be positioned relative to its parent module. These defaults were tested with modules in various positions with turrets facing forwards and backwards. Some modules, especially the small engine cockpit module, simply don't have an ideal position due to having a very small roof, but careful placement of modules and turrets can avoid any visual issues.
 
 ## Localization
@@ -179,8 +214,12 @@ The return value will be the newly deployed auto turret, or `null` if the auto t
 Note: The `BasePlayer` parameter may be null if another plugin initiated the deployment without specifying a player.
 
 ```csharp
-object OnCarAutoTurretDeploy(BaseVehicleModule module, BasePlayer player)
+object OnCarAutoTurretDeploy(BaseVehicleModule module, BasePlayer player, bool automatedDeployment)
 ```
+
+If your plugin is using this hook to block turrets from being deployed to a particular car, it's recommended that you print a relevant message to the user's chat to inform them of why it was blocked.
+
+If the `automatedDeployment` argument is `true`, that indicates this plugin attempted to deploy the turret automatically as the car was spawning. In that case, the hook will be called for each turret that this plugin attempts to add (up to 4 times), so you should refrain from messaging the user in that case to avoid spamming them.
 
 #### OnEntityBuilt
 

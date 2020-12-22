@@ -29,6 +29,8 @@ namespace Oxide.Plugins
         private const string Permission_Limit_3 = "carturrets.limit.3";
         private const string Permission_Limit_4 = "carturrets.limit.4";
 
+        private const string Permission_SpawnWithCar = "carturrets.spawnwithcar";
+
         private const string Permission_AllModules = "carturrets.allmodules";
         private const string Permission_ModuleFormat = "carturrets.{0}";
 
@@ -57,6 +59,8 @@ namespace Oxide.Plugins
             permission.RegisterPermission(Permission_Limit_2, this);
             permission.RegisterPermission(Permission_Limit_3, this);
             permission.RegisterPermission(Permission_Limit_4, this);
+            
+            permission.RegisterPermission(Permission_SpawnWithCar, this);
 
             permission.RegisterPermission(Permission_AllModules, this);
             foreach (var moduleItemShortName in pluginConfig.ModulePositions.Keys)
@@ -67,12 +71,57 @@ namespace Oxide.Plugins
                 Unsubscribe(nameof(CanPickupEntity));
                 Unsubscribe(nameof(canRemove));
             }
+
+            if (!pluginConfig.SpawnWithCarConfig.Enabled)
+                Unsubscribe(nameof(OnEntitySpawned));
         }
 
         private void OnServerInitialized(bool initialBoot)
         {
             if (initialBoot)
                 InitializeAutoTurrets();
+        }
+
+        private void OnEntitySpawned(ModularCar car)
+        {
+            if (Rust.Application.isLoadingSave || !ShouldSpawnTurretsWithCar(car))
+                return;
+
+            // Intentionally using both NextTick and Invoke
+            // Using NextTick to delay until the items have been added to the module inventory
+            // Using Invoke since that's what the game uses to delay spawning module entities
+            NextTick(() =>
+            {
+                if (car == null)
+                    return;
+
+                car.Invoke(() =>
+                {
+                    var ownerIdString = car.OwnerID != 0 ? car.OwnerID.ToString() : string.Empty;
+                    var ownerPlayer = FindEntityOwner(car);
+
+                    var allowedTurretsRemaining = GetCarAutoTurretLimit(car);
+                    for (var i = 0; i < car.AttachedModuleEntities.Count && allowedTurretsRemaining > 0; i++)
+                    {
+                        var vehicleModule = car.AttachedModuleEntities[i];
+
+                        Vector3 position;
+                        if (!TryGetAutoTurretPositionForModule(vehicleModule, out position) ||
+                            GetModuleAutoTurret(vehicleModule) != null ||
+                            ownerIdString != string.Empty && !HasPermissionToVehicleModule(ownerIdString, vehicleModule) ||
+                            UnityEngine.Random.Range(0, 100) >= GetAutoTurretChanceForModule(vehicleModule) ||
+                            DeployWasBlocked(vehicleModule, ownerPlayer, automatedDeployment: true))
+                            continue;
+
+                        if (ownerPlayer == null)
+                            DeployAutoTurret(car, vehicleModule, position);
+                        else
+                            DeployAutoTurretForPlayer(car, vehicleModule, position, ownerPlayer);
+
+                        allowedTurretsRemaining--;
+                    }
+                }, 0);
+            });
         }
 
         private object CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
@@ -386,9 +435,9 @@ namespace Oxide.Plugins
 
         #region Helper Methods
 
-        private bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer)
+        private bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer, bool automatedDeployment = false)
         {
-            object hookResult = Interface.CallHook("OnCarAutoTurretDeploy", vehicleModule, basePlayer);
+            object hookResult = Interface.CallHook("OnCarAutoTurretDeploy", vehicleModule, basePlayer, automatedDeployment);
             return hookResult is bool && (bool)hookResult == false;
         }
 
@@ -622,6 +671,38 @@ namespace Oxide.Plugins
             return null;
         }
 
+        private bool ShouldSpawnTurretsWithCar(ModularCar car)
+        {
+            var spawnWithCarConfig = pluginConfig.SpawnWithCarConfig;
+            if (!spawnWithCarConfig.Enabled)
+                return false;
+
+            if (IsNaturalCarSpawn(car))
+                return spawnWithCarConfig.NaturalCarSpawns.Enabled;
+
+            if (!spawnWithCarConfig.OtherCarSpawns.Enabled)
+                return false;
+
+            if (!spawnWithCarConfig.OtherCarSpawns.RequirePermission)
+                return true;
+
+            return car.OwnerID != 0 && permission.UserHasPermission(car.OwnerID.ToString(), Permission_SpawnWithCar);
+        }
+
+        private bool IsNaturalCarSpawn(ModularCar car)
+        {
+            var spawnable = car.GetComponent<Spawnable>();
+            return spawnable != null && spawnable.Population != null;
+        }
+
+        private int GetAutoTurretChanceForModule(BaseVehicleModule vehicleModule)
+        {
+            int chance;
+            return pluginConfig.SpawnWithCarConfig.SpawnChanceByModule.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out chance)
+                ? chance
+                : 0;
+        }
+
         private BaseVehicleModule GetParentVehicleModule(BaseEntity entity) =>
             entity.GetParentEntity() as BaseVehicleModule;
 
@@ -719,6 +800,9 @@ namespace Oxide.Plugins
             return hit.GetEntity();
         }
 
+        private BasePlayer FindEntityOwner(BaseEntity entity) =>
+            entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
+
         #endregion
 
         #region Configuration
@@ -730,6 +814,9 @@ namespace Oxide.Plugins
 
             [JsonProperty("EnableTurretPickup")]
             public bool EnableTurretPickup = true;
+
+            [JsonProperty("SpawnWithCar")]
+            public SpawnWithCarConfig SpawnWithCarConfig = new SpawnWithCarConfig();
 
             [JsonProperty("AutoTurretPositionByModule")]
             public Dictionary<string, Vector3> ModulePositions = new Dictionary<string, Vector3>()
@@ -747,6 +834,51 @@ namespace Oxide.Plugins
                 ["vehicle.2mod.fuel.tank"] = new Vector3(0, 1.28f, -0.85f),
                 ["vehicle.2mod.passengers"] = new Vector3(0, 1.4f, -0.9f)
             };
+        }
+
+        internal class SpawnWithCarConfig
+        {
+            [JsonProperty("NaturalCarSpawns")]
+            public NaturalCarSpawnsConfig NaturalCarSpawns = new NaturalCarSpawnsConfig();
+
+            [JsonProperty("OtherCarSpawns")]
+            public OtherCarSpawnsConfig OtherCarSpawns = new OtherCarSpawnsConfig();
+
+            [JsonProperty("SpawnChanceByModule")]
+            public Dictionary<string, int> SpawnChanceByModule = new Dictionary<string, int>()
+            {
+                ["vehicle.1mod.cockpit"] = 0,
+                ["vehicle.1mod.cockpit.armored"] = 0,
+                ["vehicle.1mod.cockpit.with.engine"] = 0,
+                ["vehicle.1mod.engine"] = 0,
+                ["vehicle.1mod.flatbed"] = 0,
+                ["vehicle.1mod.passengers.armored"] = 0,
+                ["vehicle.1mod.rear.seats"] = 0,
+                ["vehicle.1mod.storage"] = 0,
+                ["vehicle.1mod.taxi"] = 0,
+                ["vehicle.2mod.flatbed"] = 0,
+                ["vehicle.2mod.fuel.tank"] = 0,
+                ["vehicle.2mod.passengers"] = 0
+            };
+
+            [JsonIgnore]
+            public bool Enabled =>
+                NaturalCarSpawns.Enabled || OtherCarSpawns.Enabled;
+        }
+
+        internal class NaturalCarSpawnsConfig
+        {
+            [JsonProperty("Enabled")]
+            public bool Enabled = false;
+        }
+
+        internal class OtherCarSpawnsConfig
+        {
+            [JsonProperty("Enabled")]
+            public bool Enabled = false;
+
+            [JsonProperty("RequirePermission")]
+            public bool RequirePermission = false;
         }
 
         private Configuration GetDefaultConfig() => new Configuration();
