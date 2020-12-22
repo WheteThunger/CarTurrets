@@ -61,6 +61,12 @@ namespace Oxide.Plugins
             permission.RegisterPermission(Permission_AllModules, this);
             foreach (var moduleItemShortName in pluginConfig.ModulePositions.Keys)
                 permission.RegisterPermission(GetAutoTurretPermission(moduleItemShortName), this);
+
+            if (pluginConfig.EnableTurretPickup)
+            {
+                Unsubscribe(nameof(CanPickupEntity));
+                Unsubscribe(nameof(canRemove));
+            }
         }
 
         private void OnServerInitialized(bool initialBoot)
@@ -163,24 +169,28 @@ namespace Oxide.Plugins
             var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
             if (turretItem == null) return null;
 
-            if (turretItem.info.condition.enabled)
+            if (pluginConfig.EnableTurretPickup)
+            {
+                if (turretItem.info.condition.enabled)
                 turretItem.condition = autoTurret.healthFraction * 100;
 
-            if (targetContainer == null)
-            {
-                if (!basePlayer.inventory.GiveItem(turretItem))
+                if (targetContainer == null)
+                {
+                    if (!basePlayer.inventory.GiveItem(turretItem))
+                    {
+                        turretItem.Remove();
+                        return false;
+                    }
+                }
+                else if (!turretItem.MoveToContainer(targetContainer))
                 {
                     turretItem.Remove();
                     return false;
                 }
-            }
-            else if (!turretItem.MoveToContainer(targetContainer))
-            {
-                turretItem.Remove();
-                return false;
+
+                basePlayer.Command("note.inv", ItemId_AutoTurret, 1);
             }
 
-            basePlayer.Command("note.inv", ItemId_AutoTurret, 1);
             autoTurret.Kill();
             return null;
         }
@@ -276,6 +286,25 @@ namespace Oxide.Plugins
             if (vehicleModule == null) return null;
 
             return false;
+        }
+
+        // Only subscribed while config option EnableTurretPickup is false
+        private object CanPickupEntity(BasePlayer player, AutoTurret turret)
+        {
+            if (GetParentVehicleModule(turret) != null)
+                return false;
+
+            return null;
+        }
+
+        // Compatibility with plugin: Remover Tool (RemoverTool)
+        // Only subscribed while config option EnableTurretPickup is false
+        private object canRemove(BasePlayer player, AutoTurret turret)
+        {
+            if (GetParentVehicleModule(turret) != null)
+                return false;
+
+            return null;
         }
 
         #endregion
@@ -698,6 +727,9 @@ namespace Oxide.Plugins
         {
             [JsonProperty("DefaultLimitPerCar")]
             public int DefaultLimitPerCar = 4;
+
+            [JsonProperty("EnableTurretPickup")]
+            public bool EnableTurretPickup = true;
 
             [JsonProperty("AutoTurretPositionByModule")]
             public Dictionary<string, Vector3> ModulePositions = new Dictionary<string, Vector3>()

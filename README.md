@@ -9,7 +9,7 @@
 
 - Turrets deployed to the front of the car automatically face forwards, while turrets deployed to the back automatically face backwards. If the default rotation isn't desirable, you can rotate the auto turret like normal once it's deployed.
 - Moving a module item between slots will automatically move the turret without rotating it.
-- Moving a module item from a car's inventory to your inventory, or dropping it from the car's inventory, will automatically add an auto turret item to your inventory with condition matching the auto turret's health. This does not require permissions.
+- Moving a module item from a car's inventory to your inventory, or dropping it from the car's inventory, will automatically add an auto turret item to your inventory (if the module had a turret) with condition matching the auto turret's health. This does not require permissions.
 - Turrets deployed to vehicle modules will not target NPC players or non-hostile players who are in safe zones.
 
 ## How To Use
@@ -58,6 +58,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 ```json
 {
   "DefaultLimitPerCar": 4,
+  "EnableTurretPickup": true,
   "AutoTurretPositionByModule": {
     "vehicle.1mod.cockpit": {
       "x": 0.0,
@@ -125,6 +126,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 
 - `DefaultLimitPerCar` -- The maximum number of auto turrets allowed per car. Cars owned by players with additional permissions may have a higher value. Regardless of this value, the number of auto turrets cannot exceed the number of modules on the car.
   - Note: You can also reduce the practical limit of auto turrets per car by restricting which modules they can be deployed to. For example, if you only allow auto turrets to be deployed to flatbed modules, a 2-socket car can have at most one auto turret (assuming it's driveable). For longer cars, players will have to choose between more turrets and other utilities. You can also restrict turrets to only 2-socket modules.
+- `EnableTurretPickup` (`true` or `false`) -- While `false`, car turrets cannot be picked up with a hammer or with the RemoverTool pugin, and removing a module from a car will destroy the turret without adding an auto turret item to the player inventory.
 - `AutoTurretPositionByModule` -- For each module type (based on item short name), these values determine how an auto turret will be positioned relative to its parent module. These defaults were tested with modules in various positions with turrets facing forwards and backwards. Some modules, especially the small engine cockpit module, simply don't have an ideal position due to having a very small roof, but careful placement of modules and turrets can avoid any visual issues.
 
 ## Localization
