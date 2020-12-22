@@ -125,7 +125,7 @@ namespace Oxide.Plugins
             var vehicleModule = car.GetModuleForItem(moduleItem);
             if (vehicleModule == null) return null;
 
-            if (!HasPermissionToVehicleModule(player, vehicleModule))
+            if (!HasPermissionToVehicleModule(player.Id, vehicleModule))
             {
                 ChatMessage(basePlayer, "Deploy.Error.NoPermissionToModule");
                 return null;
@@ -460,7 +460,7 @@ namespace Oxide.Plugins
 
         private bool VerifyPermissionToModule(IPlayer player, BaseVehicleModule vehicleModule)
         {
-            if (HasPermissionToVehicleModule(player, vehicleModule)) return true;
+            if (HasPermissionToVehicleModule(player.Id, vehicleModule)) return true;
             ReplyToPlayer(player, "Deploy.Error.NoPermissionToModule");
             return false;
         }
@@ -501,7 +501,7 @@ namespace Oxide.Plugins
                 BaseVehicleModule currentModule;
                 if (car.TryGetModuleAt(socketIndex, out currentModule)
                     && currentModule.FirstSocketIndex == socketIndex
-                    && HasPermissionToVehicleModule(basePlayer.IPlayer, currentModule)
+                    && HasPermissionToVehicleModule(basePlayer.UserIDString, currentModule)
                     && GetModuleAutoTurret(currentModule) == null)
                 {
                     return socketIndex;
@@ -567,9 +567,9 @@ namespace Oxide.Plugins
         private string GetAutoTurretPermission(string moduleItemShrotName) =>
             string.Format(Permission_ModuleFormat, moduleItemShrotName);
 
-        private bool HasPermissionToVehicleModule(IPlayer player, BaseVehicleModule vehicleModule) =>
-            player.HasPermission(Permission_AllModules) ||
-            player.HasPermission(GetAutoTurretPermissionForModule(vehicleModule));
+        private bool HasPermissionToVehicleModule(string userId, BaseVehicleModule vehicleModule) =>
+            permission.UserHasPermission(userId, Permission_AllModules) ||
+            permission.UserHasPermission(userId, GetAutoTurretPermissionForModule(vehicleModule));
 
         private AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule) =>
             vehicleModule.GetComponentInChildren<AutoTurret>();
