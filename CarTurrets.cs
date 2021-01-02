@@ -459,10 +459,7 @@ namespace Oxide.Plugins
 
                 var turretSwitch = autoTurret.GetComponentInChildren<ElectricSwitch>();
                 if (turretSwitch != null)
-                {
-                    turretSwitch.pickup.enabled = false;
-                    RemoveProblemComponents(turretSwitch);
-                }
+                    SetupTurretSwitch(turretSwitch);
             }
         }
 
@@ -773,12 +770,18 @@ namespace Oxide.Plugins
             var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
             if (turretSwitch == null) return null;
 
-            turretSwitch.pickup.enabled = false;
-            RemoveProblemComponents(turretSwitch);
+            SetupTurretSwitch(turretSwitch);
             turretSwitch.Spawn();
             turretSwitch.SetParent(autoTurret, true);
 
             return turretSwitch;
+        }
+
+        private void SetupTurretSwitch(ElectricSwitch electricSwitch)
+        {
+            electricSwitch.pickup.enabled = false;
+            electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
+            RemoveProblemComponents(electricSwitch);
         }
 
         private Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule) =>
