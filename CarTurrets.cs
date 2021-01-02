@@ -782,6 +782,17 @@ namespace Oxide.Plugins
             electricSwitch.pickup.enabled = false;
             electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
             RemoveProblemComponents(electricSwitch);
+            HideInputsAndOutputs(electricSwitch);
+        }
+
+        private void HideInputsAndOutputs(IOEntity ioEntity)
+        {
+            // Trick to hide the inputs and outputs on the client
+            for (var i = 0; i < ioEntity.inputs.Length; i++)
+                ioEntity.inputs[i].type = IOEntity.IOType.Generic;
+
+            for (var i = 0; i < ioEntity.outputs.Length; i++)
+                ioEntity.outputs[i].type = IOEntity.IOType.Generic;
         }
 
         private Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule) =>
