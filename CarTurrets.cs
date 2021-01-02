@@ -126,19 +126,23 @@ namespace Oxide.Plugins
 
         private object CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
         {
-            if (item == null || playerInventory == null) return null;
+            if (item == null || playerInventory == null)
+                return null;
 
             var basePlayer = playerInventory.GetComponent<BasePlayer>();
-            if (basePlayer == null) return null;
+            if (basePlayer == null)
+                return null;
 
             var targetContainer = playerInventory.FindContainer(targetContainerId);
-            if (item.parent == null || item.parent == targetContainer) return null;
+            if (item.parent == null || item.parent == targetContainer)
+                return null;
 
             var fromCar = item.parent.entityOwner as ModularCar;
             if (fromCar != null)
                 return HandleRemoveTurret(basePlayer, item, fromCar, targetContainer);
 
-            if (targetContainer == null) return null;
+            if (targetContainer == null)
+                return null;
 
             var toCar = targetContainer.entityOwner as ModularCar;
             if (toCar != null)
@@ -152,10 +156,12 @@ namespace Oxide.Plugins
             var player = basePlayer.IPlayer;
 
             var itemid = item.info.itemid;
-            if (itemid != ItemId_AutoTurret) return null;
+            if (itemid != ItemId_AutoTurret)
+                return null;
 
             // In case a future update or a plugin adds another storage container to the car
-            if (car.Inventory.ModuleContainer != targetContainer) return null;
+            if (car.Inventory.ModuleContainer != targetContainer)
+                return null;
 
             if (!player.HasPermission(Permission_DeployInventory))
             {
@@ -163,7 +169,8 @@ namespace Oxide.Plugins
                 return null;
             }
 
-            if (!VerifyCarHasAutoTurretCapacity(player, car, replyInChat: true)) return null;
+            if (!VerifyCarHasAutoTurretCapacity(player, car, replyInChat: true))
+                return null;
 
             if (targetSlot == -1)
                 targetSlot = FindFirstSuitableSocketIndex(car, basePlayer);
@@ -175,10 +182,12 @@ namespace Oxide.Plugins
             }
 
             var moduleItem = targetContainer.GetSlot(targetSlot);
-            if (moduleItem == null) return null;
+            if (moduleItem == null)
+                return null;
 
             var vehicleModule = car.GetModuleForItem(moduleItem);
-            if (vehicleModule == null) return null;
+            if (vehicleModule == null)
+                return null;
 
             if (!HasPermissionToVehicleModule(player.Id, vehicleModule))
             {
@@ -197,7 +206,8 @@ namespace Oxide.Plugins
                 DeployWasBlocked(vehicleModule, basePlayer))
                 return null;
 
-            if (DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer, GetItemConditionFraction(item)) == null) return null;
+            if (DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer, GetItemConditionFraction(item)) == null)
+                return null;
 
             if (!player.HasPermission(Permission_Free))
                 UseItem(basePlayer, item);
@@ -207,16 +217,20 @@ namespace Oxide.Plugins
 
         private object HandleRemoveTurret(BasePlayer basePlayer, Item moduleItem, ModularCar car, ItemContainer targetContainer)
         {
-            if (car.Inventory.ModuleContainer != moduleItem.parent) return null;
+            if (car.Inventory.ModuleContainer != moduleItem.parent)
+                return null;
 
             var vehicleModule = car.GetModuleForItem(moduleItem);
-            if (vehicleModule == null) return null;
+            if (vehicleModule == null)
+                return null;
             
             var autoTurret = GetModuleAutoTurret(vehicleModule);
-            if (autoTurret == null) return null;
+            if (autoTurret == null)
+                return null;
 
             var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
-            if (turretItem == null) return null;
+            if (turretItem == null)
+                return null;
 
             if (pluginConfig.EnableTurretPickup)
             {
@@ -246,21 +260,27 @@ namespace Oxide.Plugins
 
         private void OnItemDropped(Item item, BaseEntity itemEntity)
         {
-            if (item == null || item.parent == null) return;
+            if (item == null || item.parent == null)
+                return;
             
             var car = item.parent.entityOwner as ModularCar;
-            if (car == null) return;
+            if (car == null)
+                return;
 
-            if (item.info.GetComponent<ItemModVehicleModule>() == null) return;
+            if (item.info.GetComponent<ItemModVehicleModule>() == null)
+                return;
 
             var vehicleModule = car.GetModuleForItem(item);
-            if (vehicleModule == null) return;
+            if (vehicleModule == null)
+                return;
 
             var autoTurret = GetModuleAutoTurret(vehicleModule);
-            if (autoTurret == null) return;
+            if (autoTurret == null)
+                return;
 
             var turretItem = CreateItemFromAutoTurret(autoTurret);
-            if (turretItem == null) return;
+            if (turretItem == null)
+                return;
 
             var rigidBody = itemEntity.GetComponent<Rigidbody>();
             turretItem.Drop(itemEntity.transform.position, rigidBody?.velocity ?? Vector3.zero, itemEntity.transform.rotation);
@@ -271,13 +291,16 @@ namespace Oxide.Plugins
         private void OnEntityKill(BaseVehicleModule vehicleModule)
         {
             var moduleItem = vehicleModule.AssociatedItemInstance;
-            if (moduleItem == null) return;
+            if (moduleItem == null)
+                return;
 
             var car = vehicleModule.Vehicle as ModularCar;
-            if (car == null) return;
+            if (car == null)
+                return;
 
             var autoTurret = GetModuleAutoTurret(vehicleModule);
-            if (autoTurret == null) return;
+            if (autoTurret == null)
+                return;
 
             autoTurret.SetParent(null);
 
@@ -301,10 +324,12 @@ namespace Oxide.Plugins
         private object OnSwitchToggled(ElectricSwitch electricSwitch)
         {
             var autoTurret = GetSwitchTurret(electricSwitch);
-            if (autoTurret == null) return null;
+            if (autoTurret == null)
+                return null;
 
             var vehicleModule = GetParentVehicleModule(autoTurret);
-            if (vehicleModule == null) return null;
+            if (vehicleModule == null)
+                return null;
 
             if (electricSwitch.IsOn())
                 autoTurret.InitiateStartup();
@@ -316,7 +341,8 @@ namespace Oxide.Plugins
 
         private object OnTurretTarget(AutoTurret turret, BasePlayer basePlayer)
         {
-            if (turret == null || basePlayer == null || GetParentVehicleModule(turret) == null) return null;
+            if (turret == null || basePlayer == null || GetParentVehicleModule(turret) == null)
+                return null;
 
             // Don't target human or NPC players in safe zones, unless they are hostile
             if (basePlayer.InSafeZone() && (basePlayer.IsNpc || !basePlayer.IsHostile()))
@@ -329,10 +355,12 @@ namespace Oxide.Plugins
         private object OnEntityTakeDamage(ElectricSwitch electricSwitch)
         {
             var autoTurret = GetSwitchTurret(electricSwitch);
-            if (autoTurret == null) return null;
+            if (autoTurret == null)
+                return null;
 
             var vehicleModule = GetParentVehicleModule(autoTurret);
-            if (vehicleModule == null) return null;
+            if (vehicleModule == null)
+                return null;
 
             return false;
         }
@@ -363,7 +391,8 @@ namespace Oxide.Plugins
         private AutoTurret API_DeployAutoTurret(BaseVehicleModule vehicleModule, BasePlayer basePlayer)
         {
             var car = vehicleModule.Vehicle as ModularCar;
-            if (car == null) return null;
+            if (car == null)
+                return null;
 
             Vector3 position;
             if (!TryGetAutoTurretPositionForModule(vehicleModule, out position) ||
@@ -384,7 +413,8 @@ namespace Oxide.Plugins
         [Command("carturret")]
         private void CommandDeploy(IPlayer player, string cmd, string[] args)
         {
-            if (player.IsServer || !VerifyPermissionAny(player, Permission_DeployCommand)) return;
+            if (player.IsServer || !VerifyPermissionAny(player, Permission_DeployCommand))
+                return;
 
             var basePlayer = player.Object as BasePlayer;
             ModularCar car;
@@ -425,7 +455,8 @@ namespace Oxide.Plugins
                 conditionFraction = GetItemConditionFraction(autoTurretItem);
             }
 
-            if (DeployWasBlocked(vehicleModule, basePlayer)) return;
+            if (DeployWasBlocked(vehicleModule, basePlayer))
+                return;
 
             if (DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer, conditionFraction) != null && !isFree && autoTurretItem != null)
                 UseItem(basePlayer, autoTurretItem);
@@ -443,7 +474,9 @@ namespace Oxide.Plugins
 
         private bool CanAccessVehicle(BaseVehicle vehicle, BasePlayer basePlayer, bool provideFeedback = true)
         {
-            if (VehicleDeployedLocks == null) return true;
+            if (VehicleDeployedLocks == null)
+                return true;
+
             var canAccess = VehicleDeployedLocks.Call("API_CanAccessVehicle", basePlayer, vehicle, provideFeedback);
             return !(canAccess is bool) || (bool)canAccess;
         }
@@ -475,7 +508,9 @@ namespace Oxide.Plugins
 
         private bool VerifyCanBuild(IPlayer player)
         {
-            if ((player.Object as BasePlayer).CanBuild()) return true;
+            if ((player.Object as BasePlayer).CanBuild())
+                return true;
+
             ReplyToPlayer(player, "Generic.Error.BuildingBlocked");
             return false;
         }
@@ -489,7 +524,8 @@ namespace Oxide.Plugins
             if (vehicleModule != null)
             {
                 car = vehicleModule.Vehicle as ModularCar;
-                if (car != null) return true;
+                if (car != null)
+                    return true;
 
                 ReplyToPlayer(player, "Deploy.Error.NoCarFound");
                 return false;
@@ -522,7 +558,8 @@ namespace Oxide.Plugins
         private bool VerifyCarHasAutoTurretCapacity(IPlayer player, ModularCar car, bool replyInChat = false)
         {
             var limit = GetCarAutoTurretLimit(car);
-            if (GetCarTurretCount(car) < limit) return true;
+            if (GetCarTurretCount(car) < limit)
+                return true;
 
             if (replyInChat)
                 ChatMessage(player.Object as BasePlayer, "Deploy.Error.TurretLimit", limit);
@@ -534,7 +571,9 @@ namespace Oxide.Plugins
 
         private bool VerifyPermissionToModule(IPlayer player, BaseVehicleModule vehicleModule)
         {
-            if (HasPermissionToVehicleModule(player.Id, vehicleModule)) return true;
+            if (HasPermissionToVehicleModule(player.Id, vehicleModule))
+                return true;
+
             ReplyToPlayer(player, "Deploy.Error.NoPermissionToModule");
             return false;
         }
@@ -627,7 +666,8 @@ namespace Oxide.Plugins
         private Item CreateItemFromAutoTurret(AutoTurret autoTurret)
         {
             var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
-            if (turretItem == null) return null;
+            if (turretItem == null)
+                return null;
 
             if (turretItem.info.condition.enabled)
                 turretItem.condition = autoTurret.healthFraction * 100;
@@ -709,7 +749,8 @@ namespace Oxide.Plugins
         private AutoTurret DeployAutoTurretForPlayer(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, BasePlayer basePlayer, float conditionFraction = 1)
         {
             var autoTurret = DeployAutoTurret(car, vehicleModule, position, conditionFraction, basePlayer.userID);
-            if (autoTurret == null) return null;
+            if (autoTurret == null)
+                return null;
 
             autoTurret.authorizedPlayers.Add(new ProtoBuf.PlayerNameID
             {
@@ -750,9 +791,10 @@ namespace Oxide.Plugins
         private AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
         {
             var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
-            if (autoTurret == null) return null;
+            if (autoTurret == null)
+                return null;
 
-            autoTurret.SetFlag(BaseEntity.Flags.Reserved8, true);
+            autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
             autoTurret.SetParent(vehicleModule);
             autoTurret.OwnerID = ownerId;
             RemoveProblemComponents(autoTurret);
@@ -768,7 +810,8 @@ namespace Oxide.Plugins
         private ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
         {
             var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
-            if (turretSwitch == null) return null;
+            if (turretSwitch == null)
+                return null;
 
             SetupTurretSwitch(turretSwitch);
             turretSwitch.Spawn();
@@ -810,8 +853,7 @@ namespace Oxide.Plugins
         private BaseEntity GetLookEntity(BasePlayer basePlayer)
         {
             RaycastHit hit;
-            if (!Physics.Raycast(basePlayer.eyes.HeadRay(), out hit, 3)) return null;
-            return hit.GetEntity();
+            return Physics.Raycast(basePlayer.eyes.HeadRay(), out hit, 3) ? hit.GetEntity() : null;
         }
 
         private BasePlayer FindEntityOwner(BaseEntity entity) =>
