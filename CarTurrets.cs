@@ -362,7 +362,7 @@ namespace Oxide.Plugins
             if (vehicleModule == null)
                 return null;
 
-            return false;
+            return true;
         }
 
         // Only subscribed while config option EnableTurretPickup is false
