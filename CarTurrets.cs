@@ -59,7 +59,7 @@ namespace Oxide.Plugins
             permission.RegisterPermission(Permission_Limit_2, this);
             permission.RegisterPermission(Permission_Limit_3, this);
             permission.RegisterPermission(Permission_Limit_4, this);
-            
+
             permission.RegisterPermission(Permission_SpawnWithCar, this);
 
             permission.RegisterPermission(Permission_AllModules, this);
@@ -223,7 +223,7 @@ namespace Oxide.Plugins
             var vehicleModule = car.GetModuleForItem(moduleItem);
             if (vehicleModule == null)
                 return null;
-            
+
             var autoTurret = GetModuleAutoTurret(vehicleModule);
             if (autoTurret == null)
                 return null;
@@ -262,7 +262,7 @@ namespace Oxide.Plugins
         {
             if (item == null || item.parent == null)
                 return;
-            
+
             var car = item.parent.entityOwner as ModularCar;
             if (car == null)
                 return;
@@ -850,10 +850,12 @@ namespace Oxide.Plugins
             UnityEngine.Object.DestroyImmediate(ent.GetComponent<GroundWatch>());
         }
 
-        private BaseEntity GetLookEntity(BasePlayer basePlayer)
+        private BaseEntity GetLookEntity(BasePlayer basePlayer, float maxDistance = 3)
         {
             RaycastHit hit;
-            return Physics.Raycast(basePlayer.eyes.HeadRay(), out hit, 3) ? hit.GetEntity() : null;
+            return Physics.Raycast(basePlayer.eyes.HeadRay(), out hit, maxDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+                ? hit.GetEntity()
+                : null;
         }
 
         private BasePlayer FindEntityOwner(BaseEntity entity) =>
