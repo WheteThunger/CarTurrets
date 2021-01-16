@@ -5,7 +5,7 @@
 - Restrict which modules players can deploy turrets to, using permissions.
 - Automatically add turrets to cars when they spawn.
   - Configurable chance to spawn a turret for each module type.
-  - Can apply to natural spawns along the road or all car spawns, optionally using the permssions of the car owner.
+  - Can apply to natural car spawns along the road, as well as other car spawns, optionally requiring the car owner to have permission.
 - Configurable turret position for each module type.
 
 #### Notes
@@ -159,7 +159,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
   - `NaturalCarSpawns`
     - `Enabled` (`true` or `false`) -- While `true`, cars that spawn naturally along roads will automatically have turrets added to them, up to the limit determined by `DefaultLimitPerCar`, and according to the chances in `SpawnChanceByModule`.
   - `OtherCarSpawns`.
-    - `Enabled` (`true` or `false`) -- While `true`, cars spawned by plugins (such as [Spawn Modular Car](https://umod.org/plugins/spawn-modular-car) or Vehicle Airdrops) will have turrets added to them automatically, up to the limit determined by `DefaultLimitPerCar` or the permissions of the car owner if applicable, and according to the chances in `SpawnChanceByModule`.
+    - `Enabled` (`true` or `false`) -- While `true`, cars spawned by plugins (such as [Spawn Modular Car](https://umod.org/plugins/spawn-modular-car) or Vehicle Airdrops) will have turrets added to them automatically, up to the limit determined by `DefaultLimitPerCar` or based on the permissions of the car owner if applicable, and according to the chances in `SpawnChanceByModule`.
     - `RequirePermission` (`true` or `false`) -- While `true`, cars spawned by plugins will only have turrets added to them if the car is owned by a player with the `carturrets.spawnwithcar` permission.
   - `SpawnChanceByModule` -- For each module type (based on item short name), these values determine the percent chance (`0` - `100`) that modules of that type will automatically have a turret added to them when the car spawns.
 - `AutoTurretPositionByModule` -- For each module type (based on item short name), these values determine how an auto turret will be positioned relative to its parent module. These defaults were tested with modules in various positions with turrets facing forwards and backwards. Some modules, especially the small engine cockpit module, simply don't have an ideal position due to having a very small roof, but careful placement of modules and turrets can avoid any visual issues.
