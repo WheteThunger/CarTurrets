@@ -40,11 +40,11 @@ namespace Oxide.Plugins
 
         private const int ItemId_AutoTurret = -2139580305;
 
-        private readonly Vector3 TurretSwitchPosition = new Vector3(0, -0.64f, -0.32f);
-        private readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
-        private readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
+        private static readonly Vector3 TurretSwitchPosition = new Vector3(0, -0.64f, -0.32f);
+        private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
+        private static readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
 
-        private Configuration pluginConfig;
+        private Configuration _pluginConfig;
 
         #endregion
 
@@ -63,16 +63,16 @@ namespace Oxide.Plugins
             permission.RegisterPermission(Permission_SpawnWithCar, this);
 
             permission.RegisterPermission(Permission_AllModules, this);
-            foreach (var moduleItemShortName in pluginConfig.ModulePositions.Keys)
+            foreach (var moduleItemShortName in _pluginConfig.ModulePositions.Keys)
                 permission.RegisterPermission(GetAutoTurretPermission(moduleItemShortName), this);
 
-            if (pluginConfig.EnableTurretPickup)
+            if (_pluginConfig.EnableTurretPickup)
             {
                 Unsubscribe(nameof(CanPickupEntity));
                 Unsubscribe(nameof(canRemove));
             }
 
-            if (!pluginConfig.SpawnWithCarConfig.Enabled)
+            if (!_pluginConfig.SpawnWithCarConfig.Enabled)
                 Unsubscribe(nameof(OnEntitySpawned));
         }
 
@@ -87,9 +87,9 @@ namespace Oxide.Plugins
             if (Rust.Application.isLoadingSave || !ShouldSpawnTurretsWithCar(car))
                 return;
 
-            // Intentionally using both NextTick and Invoke
-            // Using NextTick to delay until the items have been added to the module inventory
-            // Using Invoke since that's what the game uses to delay spawning module entities
+            // Intentionally using both NextTick and Invoke.
+            // Using NextTick to delay until the items have been added to the module inventory.
+            // Using Invoke since that's what the game uses to delay spawning module entities.
             NextTick(() =>
             {
                 if (car == null)
@@ -159,7 +159,7 @@ namespace Oxide.Plugins
             if (itemid != ItemId_AutoTurret)
                 return null;
 
-            // In case a future update or a plugin adds another storage container to the car
+            // In case a future update or a plugin adds another storage container to the car.
             if (car.Inventory.ModuleContainer != targetContainer)
                 return null;
 
@@ -232,7 +232,7 @@ namespace Oxide.Plugins
             if (turretItem == null)
                 return null;
 
-            if (pluginConfig.EnableTurretPickup)
+            if (_pluginConfig.EnableTurretPickup)
             {
                 if (turretItem.info.condition.enabled)
                 turretItem.condition = autoTurret.healthFraction * 100;
@@ -286,8 +286,8 @@ namespace Oxide.Plugins
             turretItem.Drop(itemEntity.transform.position, rigidBody?.velocity ?? Vector3.zero, itemEntity.transform.rotation);
         }
 
-        // Automatically move a deployed turret when a module moves
-        // This is not done in the CanMoveItem hook since we don't know if it's being moved yet
+        // Automatically move a deployed turret when a module moves.
+        // This is not done in the CanMoveItem hook since we don't know if it's being moved yet.
         private void OnEntityKill(BaseVehicleModule vehicleModule)
         {
             var moduleItem = vehicleModule.AssociatedItemInstance;
@@ -323,7 +323,7 @@ namespace Oxide.Plugins
 
         private object OnSwitchToggled(ElectricSwitch electricSwitch)
         {
-            var autoTurret = GetSwitchTurret(electricSwitch);
+            var autoTurret = GetParentTurret(electricSwitch);
             if (autoTurret == null)
                 return null;
 
@@ -344,17 +344,17 @@ namespace Oxide.Plugins
             if (turret == null || basePlayer == null || GetParentVehicleModule(turret) == null)
                 return null;
 
-            // Don't target human or NPC players in safe zones, unless they are hostile
+            // Don't target human or NPC players in safe zones, unless they are hostile.
             if (basePlayer.InSafeZone() && (basePlayer.IsNpc || !basePlayer.IsHostile()))
                 return false;
 
             return null;
         }
 
-        // Prevent damage to turret switches on cars
+        // Prevent damage to turret switches on cars.
         private object OnEntityTakeDamage(ElectricSwitch electricSwitch)
         {
-            var autoTurret = GetSwitchTurret(electricSwitch);
+            var autoTurret = GetParentTurret(electricSwitch);
             if (autoTurret == null)
                 return null;
 
@@ -365,7 +365,7 @@ namespace Oxide.Plugins
             return true;
         }
 
-        // Only subscribed while config option EnableTurretPickup is false
+        // This is only subscribed while config option EnableTurretPickup is false.
         private object CanPickupEntity(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
@@ -374,8 +374,8 @@ namespace Oxide.Plugins
             return null;
         }
 
-        // Compatibility with plugin: Remover Tool (RemoverTool)
-        // Only subscribed while config option EnableTurretPickup is false
+        // This hook is exposed by plugin: Remover Tool (RemoverTool).
+        // Only subscribed while config option EnableTurretPickup is false.
         private object canRemove(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
@@ -466,22 +466,13 @@ namespace Oxide.Plugins
 
         #region Helper Methods
 
-        private bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer, bool automatedDeployment = false)
+        private static bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer, bool automatedDeployment = false)
         {
             object hookResult = Interface.CallHook("OnCarAutoTurretDeploy", vehicleModule, basePlayer, automatedDeployment);
             return hookResult is bool && (bool)hookResult == false;
         }
 
-        private bool CanAccessVehicle(BaseVehicle vehicle, BasePlayer basePlayer, bool provideFeedback = true)
-        {
-            if (VehicleDeployedLocks == null)
-                return true;
-
-            var canAccess = VehicleDeployedLocks.Call("API_CanAccessVehicle", basePlayer, vehicle, provideFeedback);
-            return !(canAccess is bool) || (bool)canAccess;
-        }
-
-        private void InitializeAutoTurrets()
+        private static void InitializeAutoTurrets()
         {
             foreach (var autoTurret in BaseNetworkable.serverEntities.OfType<AutoTurret>())
             {
@@ -494,6 +485,193 @@ namespace Oxide.Plugins
                 if (turretSwitch != null)
                     SetupTurretSwitch(turretSwitch);
             }
+        }
+
+        private static BaseVehicleModule FindClosestModuleToAim(ModularCar car, BasePlayer basePlayer)
+        {
+            var headRay = basePlayer.eyes.HeadRay();
+
+            BaseVehicleModule closestModule = null;
+            float closestDistance = 0;
+
+            for (var socketIndex = 0; socketIndex < car.TotalSockets; socketIndex++)
+            {
+                BaseVehicleModule currentModule;
+                if (car.TryGetModuleAt(socketIndex, out currentModule) && currentModule.FirstSocketIndex == socketIndex)
+                {
+                    var currentDistance = Vector3.Cross(headRay.direction, currentModule.CenterPoint() - headRay.origin).magnitude;
+                    if (ReferenceEquals(closestModule, null))
+                    {
+                        closestModule = currentModule;
+                        closestDistance = currentDistance;
+                    }
+                    else if (currentDistance < closestDistance)
+                    {
+                        closestModule = currentModule;
+                        closestDistance = currentDistance;
+                    }
+                }
+            }
+
+            return closestModule;
+        }
+
+        private static void UseItem(BasePlayer basePlayer, Item item, int amountToConsume = 1)
+        {
+            item.amount -= amountToConsume;
+            if (item.amount <= 0)
+            {
+                item.RemoveFromContainer();
+                item.Remove();
+            }
+            else
+                item.MarkDirty();
+
+            basePlayer.Command("note.inv", item.info.itemid, -amountToConsume);
+        }
+
+        private static float GetItemConditionFraction(Item item) =>
+            item.hasCondition ? item.condition / item.info.condition.max : 1.0f;
+
+        private static Item FindPlayerAutoTurretItem(BasePlayer basePlayer) =>
+            basePlayer.inventory.FindItemID(ItemId_AutoTurret);
+
+        private static Item CreateItemFromAutoTurret(AutoTurret autoTurret)
+        {
+            var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
+            if (turretItem == null)
+                return null;
+
+            if (turretItem.info.condition.enabled)
+                turretItem.condition = autoTurret.healthFraction * 100;
+
+            return turretItem;
+        }
+
+        private static string GetAutoTurretPermissionForModule(BaseVehicleModule vehicleModule) =>
+            GetAutoTurretPermission(vehicleModule.AssociatedItemDef.shortname);
+
+        private static string GetAutoTurretPermission(string moduleItemShrotName) =>
+            string.Format(Permission_ModuleFormat, moduleItemShrotName);
+
+        private static int GetCarTurretCount(ModularCar car)
+        {
+            var numTurrets = 0;
+            foreach (var module in car.AttachedModuleEntities)
+            {
+                var turret = GetModuleAutoTurret(module);
+                if (turret != null)
+                    numTurrets++;
+            }
+            return numTurrets;
+        }
+
+        private static AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule)
+        {
+            foreach (var child in vehicleModule.children)
+            {
+                var turret = child as AutoTurret;
+                if (turret != null)
+                    return turret;
+            }
+            return null;
+        }
+
+        private static bool IsNaturalCarSpawn(ModularCar car)
+        {
+            var spawnable = car.GetComponent<Spawnable>();
+            return spawnable != null && spawnable.Population != null;
+        }
+
+        private static BaseVehicleModule GetParentVehicleModule(BaseEntity entity) =>
+            entity.GetParentEntity() as BaseVehicleModule;
+
+        private static AutoTurret GetParentTurret(BaseEntity entity) =>
+            entity.GetParentEntity() as AutoTurret;
+
+        private static void RunOnEntityBuilt(Item turretItem, AutoTurret autoTurret) =>
+            Interface.CallHook("OnEntityBuilt", turretItem.GetHeldEntity(), autoTurret.gameObject);
+
+        private static AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
+        {
+            var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
+            if (autoTurret == null)
+                return null;
+
+            autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
+            autoTurret.SetParent(vehicleModule);
+            autoTurret.OwnerID = ownerId;
+            RemoveProblemComponents(autoTurret);
+            autoTurret.Spawn();
+            autoTurret.SetHealth(autoTurret.MaxHealth() * conditionFraction);
+            AttachTurretSwitch(autoTurret);
+
+            Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
+
+            return autoTurret;
+        }
+
+        private static ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
+        {
+            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
+            if (turretSwitch == null)
+                return null;
+
+            SetupTurretSwitch(turretSwitch);
+            turretSwitch.Spawn();
+            turretSwitch.SetParent(autoTurret, true);
+
+            return turretSwitch;
+        }
+
+        private static void SetupTurretSwitch(ElectricSwitch electricSwitch)
+        {
+            electricSwitch.pickup.enabled = false;
+            electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
+            RemoveProblemComponents(electricSwitch);
+            HideInputsAndOutputs(electricSwitch);
+        }
+
+        private static void HideInputsAndOutputs(IOEntity ioEntity)
+        {
+            // Hide the inputs and outputs on the client.
+            foreach (var input in ioEntity.inputs)
+                input.type = IOEntity.IOType.Generic;
+
+            foreach (var output in ioEntity.outputs)
+                output.type = IOEntity.IOType.Generic;
+        }
+
+        private static Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule) =>
+            vehicleModule.FirstSocketIndex + 1 > (car.TotalSockets + 1) / 2 ? TurretBackwardRotation : Quaternion.identity;
+
+        private static void RemoveProblemComponents(BaseEntity ent)
+        {
+            foreach (var meshCollider in ent.GetComponentsInChildren<MeshCollider>())
+                UnityEngine.Object.DestroyImmediate(meshCollider);
+
+            UnityEngine.Object.DestroyImmediate(ent.GetComponent<DestroyOnGroundMissing>());
+            UnityEngine.Object.DestroyImmediate(ent.GetComponent<GroundWatch>());
+        }
+
+        private static BaseEntity GetLookEntity(BasePlayer basePlayer, float maxDistance = 3)
+        {
+            RaycastHit hit;
+            return Physics.Raycast(basePlayer.eyes.HeadRay(), out hit, maxDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+                ? hit.GetEntity()
+                : null;
+        }
+
+        private static BasePlayer FindEntityOwner(BaseEntity entity) =>
+            entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
+
+        private bool CanAccessVehicle(BaseVehicle vehicle, BasePlayer basePlayer, bool provideFeedback = true)
+        {
+            if (VehicleDeployedLocks == null)
+                return true;
+
+            var canAccess = VehicleDeployedLocks.Call("API_CanAccessVehicle", basePlayer, vehicle, provideFeedback);
+            return !(canAccess is bool) || (bool)canAccess;
         }
 
         private bool VerifyPermissionAny(IPlayer player, params string[] permissionNames)
@@ -543,7 +721,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            BaseVehicleModule closestModule = FindAimModule(car, basePlayer);
+            BaseVehicleModule closestModule = FindClosestModuleToAim(car, basePlayer);
 
             if (closestModule != null)
             {
@@ -578,35 +756,6 @@ namespace Oxide.Plugins
             return false;
         }
 
-        private BaseVehicleModule FindAimModule(ModularCar car, BasePlayer basePlayer)
-        {
-            var headRay = basePlayer.eyes.HeadRay();
-
-            BaseVehicleModule closestModule = null;
-            float closestDistance = 0;
-
-            for (var socketIndex = 0; socketIndex < car.TotalSockets; socketIndex++)
-            {
-                BaseVehicleModule currentModule;
-                if (car.TryGetModuleAt(socketIndex, out currentModule) && currentModule.FirstSocketIndex == socketIndex)
-                {
-                    var currentDistance = Vector3.Cross(headRay.direction, currentModule.CenterPoint() - headRay.origin).magnitude;
-                    if (ReferenceEquals(closestModule, null))
-                    {
-                        closestModule = currentModule;
-                        closestDistance = currentDistance;
-                    }
-                    else if (currentDistance < closestDistance)
-                    {
-                        closestModule = currentModule;
-                        closestDistance = currentDistance;
-                    }
-                }
-            }
-
-            return closestModule;
-        }
-
         private int FindFirstSuitableSocketIndex(ModularCar car, BasePlayer basePlayer)
         {
             for (var socketIndex = 0; socketIndex < car.TotalSockets; socketIndex++)
@@ -624,23 +773,9 @@ namespace Oxide.Plugins
             return -1;
         }
 
-        private void UseItem(BasePlayer basePlayer, Item item, int amountToConsume = 1)
-        {
-            item.amount -= amountToConsume;
-            if (item.amount <= 0)
-            {
-                item.RemoveFromContainer();
-                item.Remove();
-            }
-            else
-                item.MarkDirty();
-
-            basePlayer.Command("note.inv", item.info.itemid, -amountToConsume);
-        }
-
         private int GetCarAutoTurretLimit(ModularCar car)
         {
-            var defaultLimit = pluginConfig.DefaultLimitPerCar;
+            var defaultLimit = _pluginConfig.DefaultLimitPerCar;
 
             if (car.OwnerID == 0)
                 return defaultLimit;
@@ -657,60 +792,13 @@ namespace Oxide.Plugins
             return defaultLimit;
         }
 
-        private float GetItemConditionFraction(Item item) =>
-            item.hasCondition ? item.condition / item.info.condition.max : 1.0f;
-
-        private Item FindPlayerAutoTurretItem(BasePlayer basePlayer) =>
-            basePlayer.inventory.FindItemID(ItemId_AutoTurret);
-
-        private Item CreateItemFromAutoTurret(AutoTurret autoTurret)
-        {
-            var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
-            if (turretItem == null)
-                return null;
-
-            if (turretItem.info.condition.enabled)
-                turretItem.condition = autoTurret.healthFraction * 100;
-
-            return turretItem;
-        }
-
-        private string GetAutoTurretPermissionForModule(BaseVehicleModule vehicleModule) =>
-            GetAutoTurretPermission(vehicleModule.AssociatedItemDef.shortname);
-
-        private string GetAutoTurretPermission(string moduleItemShrotName) =>
-            string.Format(Permission_ModuleFormat, moduleItemShrotName);
-
         private bool HasPermissionToVehicleModule(string userId, BaseVehicleModule vehicleModule) =>
             permission.UserHasPermission(userId, Permission_AllModules) ||
             permission.UserHasPermission(userId, GetAutoTurretPermissionForModule(vehicleModule));
 
-        private int GetCarTurretCount(ModularCar car)
-        {
-            var numTurrets = 0;
-            foreach (var module in car.AttachedModuleEntities)
-            {
-                var turret = GetModuleAutoTurret(module);
-                if (turret != null)
-                    numTurrets++;
-            }
-            return numTurrets;
-        }
-
-        private AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule)
-        {
-            for (var i = 0; i < vehicleModule.children.Count; i++)
-            {
-                var turret = vehicleModule.children[i] as AutoTurret;
-                if (turret != null)
-                    return turret;
-            }
-            return null;
-        }
-
         private bool ShouldSpawnTurretsWithCar(ModularCar car)
         {
-            var spawnWithCarConfig = pluginConfig.SpawnWithCarConfig;
+            var spawnWithCarConfig = _pluginConfig.SpawnWithCarConfig;
             if (!spawnWithCarConfig.Enabled)
                 return false;
 
@@ -726,25 +814,16 @@ namespace Oxide.Plugins
             return car.OwnerID != 0 && permission.UserHasPermission(car.OwnerID.ToString(), Permission_SpawnWithCar);
         }
 
-        private bool IsNaturalCarSpawn(ModularCar car)
-        {
-            var spawnable = car.GetComponent<Spawnable>();
-            return spawnable != null && spawnable.Population != null;
-        }
+        private bool TryGetAutoTurretPositionForModule(BaseVehicleModule vehicleModule, out Vector3 position) =>
+            _pluginConfig.ModulePositions.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out position);
 
         private int GetAutoTurretChanceForModule(BaseVehicleModule vehicleModule)
         {
             int chance;
-            return pluginConfig.SpawnWithCarConfig.SpawnChanceByModule.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out chance)
+            return _pluginConfig.SpawnWithCarConfig.SpawnChanceByModule.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out chance)
                 ? chance
                 : 0;
         }
-
-        private BaseVehicleModule GetParentVehicleModule(BaseEntity entity) =>
-            entity.GetParentEntity() as BaseVehicleModule;
-
-        private AutoTurret GetSwitchTurret(ElectricSwitch electricSwitch) =>
-            electricSwitch.GetParentEntity() as AutoTurret;
 
         private AutoTurret DeployAutoTurretForPlayer(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, BasePlayer basePlayer, float conditionFraction = 1)
         {
@@ -759,7 +838,7 @@ namespace Oxide.Plugins
             });
             autoTurret.SendNetworkUpdate();
 
-            // Allow other plugins to detect the auto turret being deployed (e.g., to add a weapon automatically)
+            // Allow other plugins to detect the auto turret being deployed (e.g., to add a weapon automatically).
             var turretItem = FindPlayerAutoTurretItem(basePlayer);
             if (turretItem != null)
             {
@@ -767,7 +846,7 @@ namespace Oxide.Plugins
             }
             else
             {
-                // Temporarily increase the player inventory capacity to ensure there is enough space
+                // Temporarily increase the player inventory capacity to ensure there is enough space.
                 basePlayer.inventory.containerMain.capacity++;
                 var temporaryTurretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
                 if (basePlayer.inventory.GiveItem(temporaryTurretItem))
@@ -781,85 +860,6 @@ namespace Oxide.Plugins
 
             return autoTurret;
         }
-
-        private void RunOnEntityBuilt(Item turretItem, AutoTurret autoTurret) =>
-            Interface.CallHook("OnEntityBuilt", turretItem.GetHeldEntity(), autoTurret.gameObject);
-
-        private bool TryGetAutoTurretPositionForModule(BaseVehicleModule vehicleModule, out Vector3 position) =>
-            pluginConfig.ModulePositions.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out position);
-
-        private AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
-        {
-            var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
-            if (autoTurret == null)
-                return null;
-
-            autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
-            autoTurret.SetParent(vehicleModule);
-            autoTurret.OwnerID = ownerId;
-            RemoveProblemComponents(autoTurret);
-            autoTurret.Spawn();
-            autoTurret.SetHealth(autoTurret.MaxHealth() * conditionFraction);
-            AttachTurretSwitch(autoTurret);
-
-            Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
-
-            return autoTurret;
-        }
-
-        private ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
-        {
-            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
-            if (turretSwitch == null)
-                return null;
-
-            SetupTurretSwitch(turretSwitch);
-            turretSwitch.Spawn();
-            turretSwitch.SetParent(autoTurret, true);
-
-            return turretSwitch;
-        }
-
-        private void SetupTurretSwitch(ElectricSwitch electricSwitch)
-        {
-            electricSwitch.pickup.enabled = false;
-            electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
-            RemoveProblemComponents(electricSwitch);
-            HideInputsAndOutputs(electricSwitch);
-        }
-
-        private void HideInputsAndOutputs(IOEntity ioEntity)
-        {
-            // Trick to hide the inputs and outputs on the client
-            for (var i = 0; i < ioEntity.inputs.Length; i++)
-                ioEntity.inputs[i].type = IOEntity.IOType.Generic;
-
-            for (var i = 0; i < ioEntity.outputs.Length; i++)
-                ioEntity.outputs[i].type = IOEntity.IOType.Generic;
-        }
-
-        private Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule) =>
-            vehicleModule.FirstSocketIndex + 1 > (car.TotalSockets + 1) / 2 ? TurretBackwardRotation : Quaternion.identity;
-
-        private void RemoveProblemComponents(BaseEntity ent)
-        {
-            foreach (var meshCollider in ent.GetComponentsInChildren<MeshCollider>())
-                UnityEngine.Object.DestroyImmediate(meshCollider);
-
-            UnityEngine.Object.DestroyImmediate(ent.GetComponent<DestroyOnGroundMissing>());
-            UnityEngine.Object.DestroyImmediate(ent.GetComponent<GroundWatch>());
-        }
-
-        private BaseEntity GetLookEntity(BasePlayer basePlayer, float maxDistance = 3)
-        {
-            RaycastHit hit;
-            return Physics.Raycast(basePlayer.eyes.HeadRay(), out hit, maxDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
-                ? hit.GetEntity()
-                : null;
-        }
-
-        private BasePlayer FindEntityOwner(BaseEntity entity) =>
-            entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
 
         #endregion
 
@@ -1014,20 +1014,20 @@ namespace Oxide.Plugins
             return changed;
         }
 
-        protected override void LoadDefaultConfig() => pluginConfig = GetDefaultConfig();
+        protected override void LoadDefaultConfig() => _pluginConfig = GetDefaultConfig();
 
         protected override void LoadConfig()
         {
             base.LoadConfig();
             try
             {
-                pluginConfig = Config.ReadObject<Configuration>();
-                if (pluginConfig == null)
+                _pluginConfig = Config.ReadObject<Configuration>();
+                if (_pluginConfig == null)
                 {
                     throw new JsonException();
                 }
 
-                if (MaybeUpdateConfig(pluginConfig))
+                if (MaybeUpdateConfig(_pluginConfig))
                 {
                     LogWarning("Configuration appears to be outdated; updating and saving");
                     SaveConfig();
@@ -1043,7 +1043,7 @@ namespace Oxide.Plugins
         protected override void SaveConfig()
         {
             Log($"Configuration changes saved to {Name}.json");
-            Config.WriteObject(pluginConfig, true);
+            Config.WriteObject(_pluginConfig, true);
         }
 
         #endregion
