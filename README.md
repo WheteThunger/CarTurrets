@@ -177,7 +177,8 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
   "Deploy.Error.UnsupportedModule": "Error: That module is not supported.",
   "Deploy.Error.TurretLimit": "Error: That car may only have {0} turret(s).",
   "Deploy.Error.NoSuitableModule": "Error: No suitable module found.",
-  "Deploy.Error.NoTurret": "Error: You need an auto turret to do that."
+  "Deploy.Error.NoTurret": "Error: You need an auto turret to do that.",
+  "Remove.Error.TurretHasItems": "Error: That module's turret must be empty."
 }
 ```
 

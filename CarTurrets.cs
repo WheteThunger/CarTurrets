@@ -227,8 +227,14 @@ namespace Oxide.Plugins
             if (autoTurret == null)
                 return null;
 
-            if (_pluginConfig.EnableTurretPickup)
+            if (_pluginConfig.EnableTurretPickup && autoTurret.pickup.enabled)
             {
+                if (autoTurret.pickup.requireEmptyInv && !autoTurret.inventory.IsEmpty() && !autoTurret.inventory.IsLocked())
+                {
+                    ChatMessage(basePlayer, "Remove.Error.TurretHasItems");
+                    return false;
+                }
+
                 var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
                 if (turretItem == null)
                     return null;
@@ -1075,6 +1081,7 @@ namespace Oxide.Plugins
                 ["Deploy.Error.TurretLimit"] = "Error: That car may only have {0} turret(s).",
                 ["Deploy.Error.NoSuitableModule"] = "Error: No suitable module found.",
                 ["Deploy.Error.NoTurret"] = "Error: You need an auto turret to do that.",
+                ["Remove.Error.TurretHasItems"] = "Error: That module's turret must be empty."
             }, this, "en");
         }
 
