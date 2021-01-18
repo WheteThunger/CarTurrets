@@ -228,14 +228,14 @@ namespace Oxide.Plugins
             if (autoTurret == null)
                 return null;
 
-            var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
-            if (turretItem == null)
-                return null;
-
             if (_pluginConfig.EnableTurretPickup)
             {
+                var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
+                if (turretItem == null)
+                    return null;
+
                 if (turretItem.info.condition.enabled)
-                turretItem.condition = autoTurret.healthFraction * 100;
+                    turretItem.condition = autoTurret.healthFraction * 100;
 
                 if (targetContainer == null)
                 {
