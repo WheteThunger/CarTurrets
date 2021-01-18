@@ -283,12 +283,15 @@ namespace Oxide.Plugins
             if (autoTurret == null)
                 return;
 
-            var turretItem = CreateItemFromAutoTurret(autoTurret);
-            if (turretItem == null)
-                return;
+            if (_pluginConfig.EnableTurretPickup && autoTurret.pickup.enabled)
+            {
+                var turretItem = CreateItemFromAutoTurret(autoTurret);
+                if (turretItem == null)
+                    return;
 
-            var rigidBody = itemEntity.GetComponent<Rigidbody>();
-            turretItem.Drop(itemEntity.transform.position, rigidBody?.velocity ?? Vector3.zero, itemEntity.transform.rotation);
+                var rigidBody = itemEntity.GetComponent<Rigidbody>();
+                turretItem.Drop(itemEntity.transform.position, rigidBody?.velocity ?? Vector3.zero, itemEntity.transform.rotation);
+            }
         }
 
         // Automatically move a deployed turret when a module moves.
