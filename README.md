@@ -72,7 +72,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
       "Enabled": false,
       "RequirePermission": false
     },
-    "TurretChanceByModule": {
+    "SpawnChanceByModule": {
       "vehicle.1mod.cockpit": 0,
       "vehicle.1mod.cockpit.armored": 0,
       "vehicle.1mod.cockpit.with.engine": 0,
