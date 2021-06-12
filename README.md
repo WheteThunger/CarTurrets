@@ -26,6 +26,7 @@ Deploying an auto turret to a car module will consume an auto turret item from t
 ## Commands
 
 - `carturret` -- Deploy an auto turret onto the car module you are aiming at. You must not be building blocked. You must be within several meters of the car.
+- `carturrets.removall` -- Removes all turrets from all cars.
 
 ## Permissions
 
@@ -33,6 +34,7 @@ Deploying an auto turret to a car module will consume an auto turret item from t
 - `carturrets.deploy.inventory` -- Allows the player to deploy an auto turret to a vehicle module by clicking and dragging an auto turret item onto a vehicle module item in a car's inventory while editing the car at a lift. Note: The player also requires module-specific permissions for this to work.
 - `carturrets.spawnwithcar` -- Cars owned by players with this permission will spawn with turrets automatically added to each module they have permission to, up to the limit they are allowed. The chance for each module to spawn with a turret is determined by the plugin configuration under `SpawnWithCar->SpawnChanceByModule`.
   - Only applicable if the plugin configuration for `SpawnWithCar->OtherCarSpawns->Enabled` is `true`, and only necessary if `SpawnWithCar->OtherCarSpawns->RequirePermission` is `true`.
+- `carturrets.removall` -- Allows the player to use the `carturrets.removall` command.
 - `carturrets.allmodules` -- Allows the player to deploy turrets to all module types.
 
 As an alternative to the `allmodules` permission, you can grant permissions by module type (these are generated from the config):
@@ -178,7 +180,8 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
   "Deploy.Error.TurretLimit": "Error: That car may only have {0} turret(s).",
   "Deploy.Error.NoSuitableModule": "Error: No suitable module found.",
   "Deploy.Error.NoTurret": "Error: You need an auto turret to do that.",
-  "Remove.Error.TurretHasItems": "Error: That module's turret must be empty."
+  "Remove.Error.TurretHasItems": "Error: That module's turret must be empty.",
+  "RemoveAll.Success": "Removed all {0} car turrets."
 }
 ```
 
