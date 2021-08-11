@@ -348,14 +348,26 @@ namespace Oxide.Plugins
                 autoTurret.InitiateShutdown();
         }
 
-        private bool? OnTurretTarget(AutoTurret turret, BasePlayer basePlayer)
+        private bool? OnTurretTarget(AutoTurret turret, BaseCombatEntity target)
         {
-            if (turret == null || basePlayer == null || GetParentVehicleModule(turret) == null)
+            if (turret == null || target == null || GetParentVehicleModule(turret) == null)
                 return null;
 
-            // Don't target human or NPC players in safe zones, unless they are hostile.
-            if (basePlayer.InSafeZone() && (basePlayer.IsNpc || !basePlayer.IsHostile()))
+            if (target is BaseAnimalNPC && !_pluginConfig.TargetAnimals)
                 return false;
+
+            var basePlayer = target as BasePlayer;
+            if (basePlayer != null)
+            {
+                if (basePlayer.IsNpc && !_pluginConfig.TargetNPCs)
+                    return false;
+
+                // Don't target human or NPC players in safe zones, unless they are hostile.
+                if (basePlayer.InSafeZone() && (basePlayer.IsNpc || !basePlayer.IsHostile()))
+                    return false;
+
+                return null;
+            }
 
             return null;
         }
@@ -904,6 +916,12 @@ namespace Oxide.Plugins
 
             [JsonProperty("EnableTurretPickup")]
             public bool EnableTurretPickup = true;
+
+            [JsonProperty("TargetNPCs")]
+            public bool TargetNPCs = true;
+
+            [JsonProperty("TargetAnimals")]
+            public bool TargetAnimals = true;
 
             [JsonProperty("SpawnWithCar")]
             public SpawnWithCarConfig SpawnWithCarConfig = new SpawnWithCarConfig();
