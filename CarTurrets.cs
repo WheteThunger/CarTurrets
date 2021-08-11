@@ -167,7 +167,7 @@ namespace Oxide.Plugins
 
             if (!player.HasPermission(Permission_DeployInventory))
             {
-                ChatMessage(basePlayer, "Generic.Error.NoPermission");
+                ChatMessage(basePlayer, Lang.GenericErrorNoPermission);
                 return null;
             }
 
@@ -179,7 +179,7 @@ namespace Oxide.Plugins
 
             if (targetSlot == -1)
             {
-                ChatMessage(basePlayer, "Deploy.Error.NoSuitableModule");
+                ChatMessage(basePlayer, Lang.DeployErrorNoSuitableModule);
                 return null;
             }
 
@@ -193,13 +193,13 @@ namespace Oxide.Plugins
 
             if (!HasPermissionToVehicleModule(player.Id, vehicleModule))
             {
-                ChatMessage(basePlayer, "Deploy.Error.NoPermissionToModule");
+                ChatMessage(basePlayer, Lang.DeployErrorNoPermissionToModule);
                 return null;
             }
 
             if (GetModuleAutoTurret(vehicleModule) != null)
             {
-                ChatMessage(basePlayer, "Deploy.Error.ModuleAlreadyHasTurret");
+                ChatMessage(basePlayer, Lang.DeployErrorModuleAlreadyHasTurret);
                 return null;
             }
 
@@ -234,7 +234,7 @@ namespace Oxide.Plugins
             {
                 if (autoTurret.pickup.requireEmptyInv && !autoTurret.inventory.IsEmpty() && !autoTurret.inventory.IsLocked())
                 {
-                    ChatMessage(basePlayer, "Remove.Error.TurretHasItems");
+                    ChatMessage(basePlayer, Lang.RemoveErrorTurretHasItems);
                     return false;
                 }
 
@@ -450,14 +450,14 @@ namespace Oxide.Plugins
 
             if (GetModuleAutoTurret(vehicleModule) != null)
             {
-                ReplyToPlayer(player, "Deploy.Error.ModuleAlreadyHasTurret");
+                ReplyToPlayer(player, Lang.DeployErrorModuleAlreadyHasTurret);
                 return;
             }
 
             Vector3 position;
             if (!TryGetAutoTurretPositionForModule(vehicleModule, out position))
             {
-                ReplyToPlayer(player, "Deploy.Error.UnsupportedModule");
+                ReplyToPlayer(player, Lang.DeployErrorUnsupportedModule);
                 return;
             }
 
@@ -470,7 +470,7 @@ namespace Oxide.Plugins
                 autoTurretItem = FindPlayerAutoTurretItem(basePlayer);
                 if (autoTurretItem == null)
                 {
-                    ReplyToPlayer(player, "Deploy.Error.NoTurret");
+                    ReplyToPlayer(player, Lang.DeployErrorNoTurret);
                     return;
                 }
                 conditionFraction = GetItemConditionFraction(autoTurretItem);
@@ -499,7 +499,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            ReplyToPlayer(player, "RemoveAll.Success", turretsRemoved);
+            ReplyToPlayer(player, Lang.RemoveAllSuccess, turretsRemoved);
         }
 
         #endregion
@@ -720,7 +720,7 @@ namespace Oxide.Plugins
                 if (player.HasPermission(perm))
                     return true;
 
-            ReplyToPlayer(player, "Generic.Error.NoPermission");
+            ReplyToPlayer(player, Lang.GenericErrorNoPermission);
             return false;
         }
 
@@ -729,7 +729,7 @@ namespace Oxide.Plugins
             if ((player.Object as BasePlayer).CanBuild())
                 return true;
 
-            ReplyToPlayer(player, "Generic.Error.BuildingBlocked");
+            ReplyToPlayer(player, Lang.GenericErrorBuildingBlocked);
             return false;
         }
 
@@ -745,7 +745,7 @@ namespace Oxide.Plugins
                 if (car != null)
                     return true;
 
-                ReplyToPlayer(player, "Deploy.Error.NoCarFound");
+                ReplyToPlayer(player, Lang.DeployErrorNoCarFound);
                 return false;
             }
 
@@ -756,7 +756,7 @@ namespace Oxide.Plugins
                 car = lift?.carOccupant;
                 if (car == null)
                 {
-                    ReplyToPlayer(player, "Deploy.Error.NoCarFound");
+                    ReplyToPlayer(player, Lang.DeployErrorNoCarFound);
                     return false;
                 }
             }
@@ -769,7 +769,7 @@ namespace Oxide.Plugins
                 return true;
             }
 
-            ReplyToPlayer(player, "Deploy.Error.NoModules");
+            ReplyToPlayer(player, Lang.DeployErrorNoModules);
             return false;
         }
 
@@ -780,9 +780,9 @@ namespace Oxide.Plugins
                 return true;
 
             if (replyInChat)
-                ChatMessage(player.Object as BasePlayer, "Deploy.Error.TurretLimit", limit);
+                ChatMessage(player.Object as BasePlayer, Lang.DeployErrorTurretLimit, limit);
             else
-                ReplyToPlayer(player, "Deploy.Error.TurretLimit", limit);
+                ReplyToPlayer(player, Lang.DeployErrorTurretLimit, limit);
 
             return false;
         }
@@ -792,7 +792,7 @@ namespace Oxide.Plugins
             if (HasPermissionToVehicleModule(player.Id, vehicleModule))
                 return true;
 
-            ReplyToPlayer(player, "Deploy.Error.NoPermissionToModule");
+            ReplyToPlayer(player, Lang.DeployErrorNoPermissionToModule);
             return false;
         }
 
@@ -1113,22 +1113,38 @@ namespace Oxide.Plugins
             return args.Length > 0 ? string.Format(message, args) : message;
         }
 
+        private class Lang
+        {
+            public const string GenericErrorNoPermission = "Generic.Error.NoPermission";
+            public const string GenericErrorBuildingBlocked = "Generic.Error.BuildingBlocked";
+            public const string DeployErrorNoCarFound = "Deploy.Error.NoCarFound";
+            public const string DeployErrorNoModules = "Deploy.Error.NoModules";
+            public const string DeployErrorNoPermissionToModule = "Deploy.Error.NoPermissionToModule";
+            public const string DeployErrorModuleAlreadyHasTurret = "Deploy.Error.ModuleAlreadyHasTurret";
+            public const string DeployErrorUnsupportedModule = "Deploy.Error.UnsupportedModule";
+            public const string DeployErrorTurretLimit = "Deploy.Error.TurretLimit";
+            public const string DeployErrorNoSuitableModule = "Deploy.Error.NoSuitableModule";
+            public const string DeployErrorNoTurret = "Deploy.Error.NoTurret";
+            public const string RemoveErrorTurretHasItems = "Remove.Error.TurretHasItems";
+            public const string RemoveAllSuccess = "RemoveAll.Success";
+        }
+
         protected override void LoadDefaultMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["Generic.Error.NoPermission"] = "You don't have permission to do that.",
-                ["Generic.Error.BuildingBlocked"] = "Error: Cannot do that while building blocked.",
-                ["Deploy.Error.NoCarFound"] = "Error: No car found.",
-                ["Deploy.Error.NoModules"] = "Error: That car has no modules.",
-                ["Deploy.Error.NoPermissionToModule"] = "You don't have permission to do that to that module type.",
-                ["Deploy.Error.ModuleAlreadyHasTurret"] = "Error: That module already has a turret.",
-                ["Deploy.Error.UnsupportedModule"] = "Error: That module is not supported.",
-                ["Deploy.Error.TurretLimit"] = "Error: That car may only have {0} turret(s).",
-                ["Deploy.Error.NoSuitableModule"] = "Error: No suitable module found.",
-                ["Deploy.Error.NoTurret"] = "Error: You need an auto turret to do that.",
-                ["Remove.Error.TurretHasItems"] = "Error: That module's turret must be empty.",
-                ["RemoveAll.Success"] = "Removed all {0} car turrets.",
+                [Lang.GenericErrorNoPermission] = "You don't have permission to do that.",
+                [Lang.GenericErrorBuildingBlocked] = "Error: Cannot do that while building blocked.",
+                [Lang.DeployErrorNoCarFound] = "Error: No car found.",
+                [Lang.DeployErrorNoModules] = "Error: That car has no modules.",
+                [Lang.DeployErrorNoPermissionToModule] = "You don't have permission to do that to that module type.",
+                [Lang.DeployErrorModuleAlreadyHasTurret] = "Error: That module already has a turret.",
+                [Lang.DeployErrorUnsupportedModule] = "Error: That module is not supported.",
+                [Lang.DeployErrorTurretLimit] = "Error: That car may only have {0} turret(s).",
+                [Lang.DeployErrorNoSuitableModule] = "Error: No suitable module found.",
+                [Lang.DeployErrorNoTurret] = "Error: You need an auto turret to do that.",
+                [Lang.RemoveErrorTurretHasItems] = "Error: That module's turret must be empty.",
+                [Lang.RemoveAllSuccess] = "Removed all {0} car turrets.",
             }, this, "en");
         }
 
