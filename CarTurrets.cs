@@ -5,6 +5,7 @@ using Oxide.Core;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using Rust.Modular;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -125,7 +126,7 @@ namespace Oxide.Plugins
             });
         }
 
-        private object CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
+        private bool? CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
         {
             if (item == null || playerInventory == null)
                 return null;
@@ -152,7 +153,7 @@ namespace Oxide.Plugins
             return null;
         }
 
-        private object HandleAddTurret(BasePlayer basePlayer, Item item, ModularCar car, ItemContainer targetContainer, int targetSlot)
+        private bool? HandleAddTurret(BasePlayer basePlayer, Item item, ModularCar car, ItemContainer targetContainer, int targetSlot)
         {
             var player = basePlayer.IPlayer;
 
@@ -216,7 +217,7 @@ namespace Oxide.Plugins
             return false;
         }
 
-        private object HandleRemoveTurret(BasePlayer basePlayer, Item moduleItem, ModularCar car, ItemContainer targetContainer)
+        private bool? HandleRemoveTurret(BasePlayer basePlayer, Item moduleItem, ModularCar car, ItemContainer targetContainer)
         {
             if (car.Inventory.ModuleContainer != moduleItem.parent)
                 return null;
@@ -331,25 +332,23 @@ namespace Oxide.Plugins
             });
         }
 
-        private object OnSwitchToggled(ElectricSwitch electricSwitch)
+        private void OnSwitchToggled(ElectricSwitch electricSwitch)
         {
             var autoTurret = GetParentTurret(electricSwitch);
             if (autoTurret == null)
-                return null;
+                return;
 
             var vehicleModule = GetParentVehicleModule(autoTurret);
             if (vehicleModule == null)
-                return null;
+                return;
 
             if (electricSwitch.IsOn())
                 autoTurret.InitiateStartup();
             else
                 autoTurret.InitiateShutdown();
-
-            return null;
         }
 
-        private object OnTurretTarget(AutoTurret turret, BasePlayer basePlayer)
+        private bool? OnTurretTarget(AutoTurret turret, BasePlayer basePlayer)
         {
             if (turret == null || basePlayer == null || GetParentVehicleModule(turret) == null)
                 return null;
@@ -362,7 +361,7 @@ namespace Oxide.Plugins
         }
 
         // Prevent damage to turret switches on cars.
-        private object OnEntityTakeDamage(ElectricSwitch electricSwitch)
+        private bool? OnEntityTakeDamage(ElectricSwitch electricSwitch)
         {
             var autoTurret = GetParentTurret(electricSwitch);
             if (autoTurret == null)
@@ -376,7 +375,7 @@ namespace Oxide.Plugins
         }
 
         // This is only subscribed while config option EnableTurretPickup is false.
-        private object CanPickupEntity(BasePlayer player, AutoTurret turret)
+        private bool? CanPickupEntity(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
                 return false;
@@ -386,7 +385,7 @@ namespace Oxide.Plugins
 
         // This hook is exposed by plugin: Remover Tool (RemoverTool).
         // Only subscribed while config option EnableTurretPickup is false.
-        private object canRemove(BasePlayer player, AutoTurret turret)
+        private bool? canRemove(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
                 return false;
@@ -894,7 +893,7 @@ namespace Oxide.Plugins
 
         #region Configuration
 
-        internal class Configuration : SerializableConfiguration
+        private class Configuration : SerializableConfiguration
         {
             [JsonProperty("DefaultLimitPerCar")]
             public int DefaultLimitPerCar = 4;
@@ -923,7 +922,7 @@ namespace Oxide.Plugins
             };
         }
 
-        internal class SpawnWithCarConfig
+        private class SpawnWithCarConfig
         {
             [JsonProperty("NaturalCarSpawns")]
             public NaturalCarSpawnsConfig NaturalCarSpawns = new NaturalCarSpawnsConfig();
@@ -953,13 +952,13 @@ namespace Oxide.Plugins
                 NaturalCarSpawns.Enabled || OtherCarSpawns.Enabled;
         }
 
-        internal class NaturalCarSpawnsConfig
+        private class NaturalCarSpawnsConfig
         {
             [JsonProperty("Enabled")]
             public bool Enabled = false;
         }
 
-        internal class OtherCarSpawnsConfig
+        private class OtherCarSpawnsConfig
         {
             [JsonProperty("Enabled")]
             public bool Enabled = false;
@@ -974,14 +973,14 @@ namespace Oxide.Plugins
 
         #region Configuration Boilerplate
 
-        internal class SerializableConfiguration
+        private class SerializableConfiguration
         {
             public string ToJson() => JsonConvert.SerializeObject(this);
 
             public Dictionary<string, object> ToDictionary() => JsonHelper.Deserialize(ToJson()) as Dictionary<string, object>;
         }
 
-        internal static class JsonHelper
+        private static class JsonHelper
         {
             public static object Deserialize(string json) => ToObject(JToken.Parse(json));
 
@@ -1062,8 +1061,9 @@ namespace Oxide.Plugins
                     SaveConfig();
                 }
             }
-            catch
+            catch (Exception e)
             {
+                LogError(e.Message);
                 LogWarning($"Configuration file {Name}.json is invalid; using defaults");
                 LoadDefaultConfig();
             }
