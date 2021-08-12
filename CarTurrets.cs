@@ -21,6 +21,7 @@ namespace Oxide.Plugins
         [PluginReference]
         Plugin VehicleDeployedLocks;
 
+        private static CarTurrets _pluginInstance;
         private static Configuration _pluginConfig;
 
         private const string Permission_DeployCommand = "carturrets.deploy.command";
@@ -48,6 +49,8 @@ namespace Oxide.Plugins
         private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
         private static readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
 
+        private DynamicHookSubscriber<uint> _carTurretTracker;
+
         private ProtectionProperties ImmortalProtection;
 
         #endregion
@@ -56,6 +59,8 @@ namespace Oxide.Plugins
 
         private void Init()
         {
+            _pluginInstance = this;
+
             permission.RegisterPermission(Permission_DeployCommand, this);
             permission.RegisterPermission(Permission_DeployInventory, this);
             permission.RegisterPermission(Permission_Free, this);
@@ -71,14 +76,28 @@ namespace Oxide.Plugins
             foreach (var moduleItemShortName in _pluginConfig.ModulePositions.Keys)
                 permission.RegisterPermission(GetAutoTurretPermission(moduleItemShortName), this);
 
+            var dynamicHookNames = new List<string>()
+            {
+                nameof(OnItemDropped),
+                nameof(OnEntityKill),
+                nameof(OnSwitchToggle),
+                nameof(OnSwitchToggled),
+                nameof(OnTurretTarget),
+            };
+
+            if (!_pluginConfig.SpawnWithCarConfig.Enabled)
+                Unsubscribe(nameof(OnEntitySpawned));
+
             if (_pluginConfig.EnableTurretPickup)
             {
                 Unsubscribe(nameof(CanPickupEntity));
                 Unsubscribe(nameof(canRemove));
             }
-
-            if (!_pluginConfig.SpawnWithCarConfig.Enabled)
-                Unsubscribe(nameof(OnEntitySpawned));
+            else
+            {
+                dynamicHookNames.Add(nameof(CanPickupEntity));
+                dynamicHookNames.Add(nameof(canRemove));
+            }
 
             if (!_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
             {
@@ -86,16 +105,26 @@ namespace Oxide.Plugins
                 Unsubscribe(nameof(OnEngineStopped));
                 Unsubscribe(nameof(OnTurretStartup));
             }
+            else
+            {
+                dynamicHookNames.Add(nameof(OnEngineStarted));
+                dynamicHookNames.Add(nameof(OnEngineStopped));
+                dynamicHookNames.Add(nameof(OnTurretStartup));
+            }
+
+            _carTurretTracker = new DynamicHookSubscriber<uint>(dynamicHookNames.ToArray());
+            _carTurretTracker.UnsubscribeAll();
         }
 
         private void Unload()
         {
-            _pluginConfig = null;
-
             UnityEngine.Object.Destroy(ImmortalProtection);
+
+            _pluginConfig = null;
+            _pluginInstance = null;
         }
 
-        private void OnServerInitialized(bool initialBoot)
+        private void OnServerInitialized()
         {
             ImmortalProtection = ScriptableObject.CreateInstance<ProtectionProperties>();
             ImmortalProtection.name = "CarTurretsSwitchProtection";
@@ -372,6 +401,11 @@ namespace Oxide.Plugins
                         autoTurret.SetParent(newModule);
                 }
             });
+        }
+
+        private void OnEntityKill(AutoTurret turret)
+        {
+            _carTurretTracker.Remove(turret.net.ID);
         }
 
         private bool? OnSwitchToggle(ElectricSwitch electricSwitch, BasePlayer player)
@@ -770,6 +804,12 @@ namespace Oxide.Plugins
         private static BasePlayer FindEntityOwner(BaseEntity entity) =>
             entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
 
+        private void SetupCarTurret(AutoTurret turret)
+        {
+            RemoveProblemComponents(turret);
+            _carTurretTracker.Add(turret.net.ID);
+        }
+
         private AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
         {
             var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
@@ -779,9 +819,10 @@ namespace Oxide.Plugins
             autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
             autoTurret.SetParent(vehicleModule);
             autoTurret.OwnerID = ownerId;
-            RemoveProblemComponents(autoTurret);
             autoTurret.Spawn();
             autoTurret.SetHealth(autoTurret.MaxHealth() * conditionFraction);
+
+            SetupCarTurret(autoTurret);
             AttachTurretSwitch(autoTurret);
 
             Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
@@ -791,7 +832,7 @@ namespace Oxide.Plugins
 
         private void RefreshCarTurret(AutoTurret turret)
         {
-            RemoveProblemComponents(turret);
+            SetupCarTurret(turret);
 
             var turretSwitch = GetTurretSwitch(turret);
             if (turretSwitch != null)
@@ -1018,6 +1059,45 @@ namespace Oxide.Plugins
             }
 
             return autoTurret;
+        }
+
+        #endregion
+
+        #region Dynamic Hook Subscriptions
+
+        private class DynamicHookSubscriber<T>
+        {
+            private HashSet<T> _list = new HashSet<T>();
+            private string[] _hookNames;
+
+            public DynamicHookSubscriber(params string[] hookNames)
+            {
+                _hookNames = hookNames;
+            }
+
+            public void Add(T item)
+            {
+                if (_list.Add(item) && _list.Count == 1)
+                    SubscribeAll();
+            }
+
+            public void Remove(T item)
+            {
+                if (_list.Remove(item) && _list.Count == 0)
+                    UnsubscribeAll();
+            }
+
+            public void SubscribeAll()
+            {
+                foreach (var hookName in _hookNames)
+                    _pluginInstance.Subscribe(hookName);
+            }
+
+            public void UnsubscribeAll()
+            {
+                foreach (var hookName in _hookNames)
+                    _pluginInstance.Unsubscribe(hookName);
+            }
         }
 
         #endregion
