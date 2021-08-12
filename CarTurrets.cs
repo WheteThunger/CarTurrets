@@ -48,6 +48,8 @@ namespace Oxide.Plugins
         private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
         private static readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
 
+        private ProtectionProperties ImmortalProtection;
+
         #endregion
 
         #region Hooks
@@ -89,10 +91,16 @@ namespace Oxide.Plugins
         private void Unload()
         {
             _pluginConfig = null;
+
+            UnityEngine.Object.Destroy(ImmortalProtection);
         }
 
         private void OnServerInitialized(bool initialBoot)
         {
+            ImmortalProtection = ScriptableObject.CreateInstance<ProtectionProperties>();
+            ImmortalProtection.name = "CarTurretsSwitchProtection";
+            ImmortalProtection.Add(1);
+
             foreach (var entity in BaseNetworkable.serverEntities)
             {
                 var car = entity as ModularCar;
@@ -441,20 +449,6 @@ namespace Oxide.Plugins
             return null;
         }
 
-        // Prevent damage to turret switches on cars.
-        private bool? OnEntityTakeDamage(ElectricSwitch electricSwitch)
-        {
-            var autoTurret = GetParentTurret(electricSwitch);
-            if (autoTurret == null)
-                return null;
-
-            var vehicleModule = GetParentVehicleModule(autoTurret);
-            if (vehicleModule == null)
-                return null;
-
-            return true;
-        }
-
         // This is only subscribed while config option EnableTurretPickup is false.
         private bool? CanPickupEntity(BasePlayer player, AutoTurret turret)
         {
@@ -743,55 +737,6 @@ namespace Oxide.Plugins
         private static void RunOnEntityBuilt(Item turretItem, AutoTurret autoTurret) =>
             Interface.CallHook("OnEntityBuilt", turretItem.GetHeldEntity(), autoTurret.gameObject);
 
-        private static AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
-        {
-            var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
-            if (autoTurret == null)
-                return null;
-
-            autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
-            autoTurret.SetParent(vehicleModule);
-            autoTurret.OwnerID = ownerId;
-            RemoveProblemComponents(autoTurret);
-            autoTurret.Spawn();
-            autoTurret.SetHealth(autoTurret.MaxHealth() * conditionFraction);
-            AttachTurretSwitch(autoTurret);
-
-            Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
-
-            return autoTurret;
-        }
-
-        private static void RefreshCarTurret(AutoTurret turret)
-        {
-            RemoveProblemComponents(turret);
-
-            var turretSwitch = GetTurretSwitch(turret);
-            if (turretSwitch != null)
-                SetupTurretSwitch(turretSwitch);
-        }
-
-        private static ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
-        {
-            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
-            if (turretSwitch == null)
-                return null;
-
-            SetupTurretSwitch(turretSwitch);
-            turretSwitch.Spawn();
-            turretSwitch.SetParent(autoTurret, true);
-
-            return turretSwitch;
-        }
-
-        private static void SetupTurretSwitch(ElectricSwitch electricSwitch)
-        {
-            electricSwitch.pickup.enabled = false;
-            electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
-            RemoveProblemComponents(electricSwitch);
-            HideInputsAndOutputs(electricSwitch);
-        }
-
         private static void HideInputsAndOutputs(IOEntity ioEntity)
         {
             // Hide the inputs and outputs on the client.
@@ -824,6 +769,56 @@ namespace Oxide.Plugins
 
         private static BasePlayer FindEntityOwner(BaseEntity entity) =>
             entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
+
+        private AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
+        {
+            var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
+            if (autoTurret == null)
+                return null;
+
+            autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
+            autoTurret.SetParent(vehicleModule);
+            autoTurret.OwnerID = ownerId;
+            RemoveProblemComponents(autoTurret);
+            autoTurret.Spawn();
+            autoTurret.SetHealth(autoTurret.MaxHealth() * conditionFraction);
+            AttachTurretSwitch(autoTurret);
+
+            Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
+
+            return autoTurret;
+        }
+
+        private void RefreshCarTurret(AutoTurret turret)
+        {
+            RemoveProblemComponents(turret);
+
+            var turretSwitch = GetTurretSwitch(turret);
+            if (turretSwitch != null)
+                SetupTurretSwitch(turretSwitch);
+        }
+
+        private ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
+        {
+            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
+            if (turretSwitch == null)
+                return null;
+
+            SetupTurretSwitch(turretSwitch);
+            turretSwitch.Spawn();
+            turretSwitch.SetParent(autoTurret, true);
+
+            return turretSwitch;
+        }
+
+        private void SetupTurretSwitch(ElectricSwitch electricSwitch)
+        {
+            electricSwitch.pickup.enabled = false;
+            electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
+            electricSwitch.baseProtection = ImmortalProtection;
+            RemoveProblemComponents(electricSwitch);
+            HideInputsAndOutputs(electricSwitch);
+        }
 
         private bool CanAccessVehicle(BaseVehicle vehicle, BasePlayer basePlayer, bool provideFeedback = true)
         {
