@@ -652,6 +652,92 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Helper Methods - Command Checks
+
+        private bool VerifyPermissionAny(IPlayer player, params string[] permissionNames)
+        {
+            foreach (var perm in permissionNames)
+                if (player.HasPermission(perm))
+                    return true;
+
+            ReplyToPlayer(player, Lang.GenericErrorNoPermission);
+            return false;
+        }
+
+        private bool VerifyCanBuild(IPlayer player)
+        {
+            if ((player.Object as BasePlayer).CanBuild())
+                return true;
+
+            ReplyToPlayer(player, Lang.GenericErrorBuildingBlocked);
+            return false;
+        }
+
+        private bool VerifyVehicleModuleFound(IPlayer player, out ModularCar car, out BaseVehicleModule vehicleModule)
+        {
+            var basePlayer = player.Object as BasePlayer;
+            var entity = GetLookEntity(basePlayer);
+
+            vehicleModule = entity as BaseVehicleModule;
+            if (vehicleModule != null)
+            {
+                car = vehicleModule.Vehicle as ModularCar;
+                if (car != null)
+                    return true;
+
+                ReplyToPlayer(player, Lang.DeployErrorNoCarFound);
+                return false;
+            }
+
+            car = entity as ModularCar;
+            if (car == null)
+            {
+                var lift = entity as ModularCarGarage;
+                car = lift?.carOccupant;
+                if (car == null)
+                {
+                    ReplyToPlayer(player, Lang.DeployErrorNoCarFound);
+                    return false;
+                }
+            }
+
+            BaseVehicleModule closestModule = FindClosestModuleToAim(car, basePlayer);
+
+            if (closestModule != null)
+            {
+                vehicleModule = closestModule;
+                return true;
+            }
+
+            ReplyToPlayer(player, Lang.DeployErrorNoModules);
+            return false;
+        }
+
+        private bool VerifyCarHasAutoTurretCapacity(IPlayer player, ModularCar car, bool replyInChat = false)
+        {
+            var limit = GetCarAutoTurretLimit(car);
+            if (GetCarTurretCount(car) < limit)
+                return true;
+
+            if (replyInChat)
+                ChatMessage(player.Object as BasePlayer, Lang.DeployErrorTurretLimit, limit);
+            else
+                ReplyToPlayer(player, Lang.DeployErrorTurretLimit, limit);
+
+            return false;
+        }
+
+        private bool VerifyPermissionToModule(IPlayer player, BaseVehicleModule vehicleModule)
+        {
+            if (HasPermissionToVehicleModule(player.Id, vehicleModule))
+                return true;
+
+            ReplyToPlayer(player, Lang.DeployErrorNoPermissionToModule);
+            return false;
+        }
+
+        #endregion
+
         #region Helper Methods
 
         private static bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer, bool automatedDeployment = false)
@@ -868,88 +954,6 @@ namespace Oxide.Plugins
 
             var canAccess = VehicleDeployedLocks.Call("API_CanAccessVehicle", basePlayer, vehicle, provideFeedback);
             return !(canAccess is bool) || (bool)canAccess;
-        }
-
-        private bool VerifyPermissionAny(IPlayer player, params string[] permissionNames)
-        {
-            foreach (var perm in permissionNames)
-                if (player.HasPermission(perm))
-                    return true;
-
-            ReplyToPlayer(player, Lang.GenericErrorNoPermission);
-            return false;
-        }
-
-        private bool VerifyCanBuild(IPlayer player)
-        {
-            if ((player.Object as BasePlayer).CanBuild())
-                return true;
-
-            ReplyToPlayer(player, Lang.GenericErrorBuildingBlocked);
-            return false;
-        }
-
-        private bool VerifyVehicleModuleFound(IPlayer player, out ModularCar car, out BaseVehicleModule vehicleModule)
-        {
-            var basePlayer = player.Object as BasePlayer;
-            var entity = GetLookEntity(basePlayer);
-
-            vehicleModule = entity as BaseVehicleModule;
-            if (vehicleModule != null)
-            {
-                car = vehicleModule.Vehicle as ModularCar;
-                if (car != null)
-                    return true;
-
-                ReplyToPlayer(player, Lang.DeployErrorNoCarFound);
-                return false;
-            }
-
-            car = entity as ModularCar;
-            if (car == null)
-            {
-                var lift = entity as ModularCarGarage;
-                car = lift?.carOccupant;
-                if (car == null)
-                {
-                    ReplyToPlayer(player, Lang.DeployErrorNoCarFound);
-                    return false;
-                }
-            }
-
-            BaseVehicleModule closestModule = FindClosestModuleToAim(car, basePlayer);
-
-            if (closestModule != null)
-            {
-                vehicleModule = closestModule;
-                return true;
-            }
-
-            ReplyToPlayer(player, Lang.DeployErrorNoModules);
-            return false;
-        }
-
-        private bool VerifyCarHasAutoTurretCapacity(IPlayer player, ModularCar car, bool replyInChat = false)
-        {
-            var limit = GetCarAutoTurretLimit(car);
-            if (GetCarTurretCount(car) < limit)
-                return true;
-
-            if (replyInChat)
-                ChatMessage(player.Object as BasePlayer, Lang.DeployErrorTurretLimit, limit);
-            else
-                ReplyToPlayer(player, Lang.DeployErrorTurretLimit, limit);
-
-            return false;
-        }
-
-        private bool VerifyPermissionToModule(IPlayer player, BaseVehicleModule vehicleModule)
-        {
-            if (HasPermissionToVehicleModule(player.Id, vehicleModule))
-                return true;
-
-            ReplyToPlayer(player, Lang.DeployErrorNoPermissionToModule);
-            return false;
         }
 
         private int FindFirstSuitableSocketIndex(ModularCar car, BasePlayer basePlayer)
