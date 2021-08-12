@@ -40,6 +40,7 @@ namespace Oxide.Plugins
         private const string Prefab_Entity_AutoTurret = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
         private const string Prefab_Entity_ElectricSwitch = "assets/prefabs/deployable/playerioents/simpleswitch/switch.prefab";
         private const string Prefab_Effect_DeployAutoTurret = "assets/prefabs/npc/autoturret/effects/autoturret-deploy.prefab";
+        private const string Prefab_Effect_CodeLockDenied = "assets/prefabs/locks/keypad/effects/lock.code.denied.prefab";
 
         private const int ItemId_AutoTurret = -2139580305;
 
@@ -365,13 +366,37 @@ namespace Oxide.Plugins
             });
         }
 
+        private bool? OnSwitchToggle(ElectricSwitch electricSwitch, BasePlayer player)
+        {
+            var turret = GetParentTurret(electricSwitch);
+            if (turret == null)
+                return null;
+
+            var vehicleModule = GetParentVehicleModule(turret);
+            if (vehicleModule == null)
+                return null;
+
+            var car = vehicleModule.Vehicle as ModularCar;
+            if (car == null)
+                return null;
+
+            if (!player.CanBuild())
+            {
+                // Disallow switching the turret on and off while building blocked.
+                Effect.server.Run(Prefab_Effect_CodeLockDenied, electricSwitch, 0, Vector3.zero, Vector3.forward);
+                return false;
+            }
+
+            return null;
+        }
+
         private void OnSwitchToggled(ElectricSwitch electricSwitch, BasePlayer player)
         {
-            var autoTurret = GetParentTurret(electricSwitch);
-            if (autoTurret == null)
+            var turret = GetParentTurret(electricSwitch);
+            if (turret == null)
                 return;
 
-            var vehicleModule = GetParentVehicleModule(autoTurret);
+            var vehicleModule = GetParentVehicleModule(turret);
             if (vehicleModule == null)
                 return;
 
@@ -384,11 +409,11 @@ namespace Oxide.Plugins
                 if (_pluginConfig.OnlyPowerTurretsWhileEngineIsOn && !car.IsOn())
                     ChatMessage(player, Lang.InfoPowerRequiresEngine);
                 else
-                    autoTurret.InitiateStartup();
+                    turret.InitiateStartup();
             }
             else
             {
-                autoTurret.InitiateShutdown();
+                turret.InitiateShutdown();
             }
         }
 
