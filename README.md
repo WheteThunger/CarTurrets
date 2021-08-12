@@ -66,6 +66,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 {
   "DefaultLimitPerCar": 4,
   "EnableTurretPickup": true,
+  "OnlyPowerTurretsWhileEngineIsOn": false,
   "TargetNPCs": true,
   "TargetAnimals": true,
   "SpawnWithCar": {
@@ -159,6 +160,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 - `DefaultLimitPerCar` -- The maximum number of auto turrets allowed per car. Cars owned by players with additional permissions may have a higher value. Regardless of this value, the number of auto turrets cannot exceed the number of modules on the car.
   - Note: You can also reduce the practical limit of auto turrets per car by restricting which modules they can be deployed to. For example, if you only allow auto turrets to be deployed to flatbed modules, a 2-socket car can have at most one auto turret (assuming it's driveable). For longer cars, players will have to choose between more turrets and other utilities. You can also restrict turrets to only 2-socket modules.
 - `EnableTurretPickup` (`true` or `false`) -- While `false`, car turrets cannot be picked up with a hammer or with the RemoverTool pugin, and removing a module from a car will destroy the turret without adding an auto turret item to the player inventory.
+- `OnlyPowerTurretsWhileEngineIsOn` (`true` or `false`) -- While `true`, turrets will not be powered unless the engine is on.
 - `TargetNPCs` (`true` or `false`) -- Whether car-mounted turrets should target NPCs.
 - `TargetAnimals` (`true` or `false`) -- Whether car-mounted turrets should target NPC animals such as bears.
 - `SpawnWithCar` -- Settings for automatically adding turrets to cars when they spawn.
@@ -185,7 +187,8 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
   "Deploy.Error.NoSuitableModule": "Error: No suitable module found.",
   "Deploy.Error.NoTurret": "Error: You need an auto turret to do that.",
   "Remove.Error.TurretHasItems": "Error: That module's turret must be empty.",
-  "RemoveAll.Success": "Removed all {0} car turrets."
+  "RemoveAll.Success": "Removed all {0} car turrets.",
+  "Info.PowerRequiresEngine": "The turret will power on when the car engine starts."
 }
 ```
 

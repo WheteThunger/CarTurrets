@@ -21,6 +21,8 @@ namespace Oxide.Plugins
         [PluginReference]
         Plugin VehicleDeployedLocks;
 
+        private static Configuration _pluginConfig;
+
         private const string Permission_DeployCommand = "carturrets.deploy.command";
         private const string Permission_DeployInventory = "carturrets.deploy.inventory";
         private const string Permission_Free = "carturrets.free";
@@ -44,8 +46,6 @@ namespace Oxide.Plugins
         private static readonly Vector3 TurretSwitchPosition = new Vector3(0, -0.64f, -0.32f);
         private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
         private static readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
-
-        private Configuration _pluginConfig;
 
         #endregion
 
@@ -76,12 +76,45 @@ namespace Oxide.Plugins
 
             if (!_pluginConfig.SpawnWithCarConfig.Enabled)
                 Unsubscribe(nameof(OnEntitySpawned));
+
+            if (!_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
+            {
+                Unsubscribe(nameof(OnEngineStarted));
+                Unsubscribe(nameof(OnEngineStopped));
+                Unsubscribe(nameof(OnTurretStartup));
+            }
+        }
+
+        private void Unload()
+        {
+            _pluginConfig = null;
         }
 
         private void OnServerInitialized(bool initialBoot)
         {
-            if (initialBoot)
-                InitializeAutoTurrets();
+            foreach (var entity in BaseNetworkable.serverEntities)
+            {
+                var car = entity as ModularCar;
+                if (car == null)
+                    continue;
+
+                foreach (var module in car.AttachedModuleEntities)
+                {
+                    var turret = GetModuleAutoTurret(module);
+                    if (turret == null)
+                        continue;
+
+                    RefreshCarTurret(turret);
+                }
+
+                if (_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
+                {
+                    if (car.IsOn())
+                        OnEngineStarted(car);
+                    else
+                        OnEngineStopped(car);
+                }
+            }
         }
 
         private void OnEntitySpawned(ModularCar car)
@@ -332,7 +365,7 @@ namespace Oxide.Plugins
             });
         }
 
-        private void OnSwitchToggled(ElectricSwitch electricSwitch)
+        private void OnSwitchToggled(ElectricSwitch electricSwitch, BasePlayer player)
         {
             var autoTurret = GetParentTurret(electricSwitch);
             if (autoTurret == null)
@@ -342,10 +375,21 @@ namespace Oxide.Plugins
             if (vehicleModule == null)
                 return;
 
+            var car = vehicleModule.Vehicle as ModularCar;
+            if (car == null)
+                return;
+
             if (electricSwitch.IsOn())
-                autoTurret.InitiateStartup();
+            {
+                if (_pluginConfig.OnlyPowerTurretsWhileEngineIsOn && !car.IsOn())
+                    ChatMessage(player, Lang.InfoPowerRequiresEngine);
+                else
+                    autoTurret.InitiateStartup();
+            }
             else
+            {
                 autoTurret.InitiateShutdown();
+            }
         }
 
         private bool? OnTurretTarget(AutoTurret turret, BaseCombatEntity target)
@@ -400,6 +444,57 @@ namespace Oxide.Plugins
         private bool? canRemove(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
+                return false;
+
+            return null;
+        }
+
+        // This is only subscribed while OnlyPowerTurretsWhileEngineIsOn is true.
+        private void OnEngineStarted(ModularCar car)
+        {
+            foreach (var module in car.AttachedModuleEntities)
+            {
+                var turret = GetModuleAutoTurret(module);
+                if (turret == null || turret.booting || turret.IsOn())
+                    continue;
+
+                var electricSwitch = GetTurretSwitch(turret);
+                if (electricSwitch == null || !electricSwitch.IsOn())
+                    continue;
+
+                turret.InitiateStartup();
+            }
+        }
+
+        // This is only subscribed while OnlyPowerTurretsWhileEngineIsOn is true.
+        private void OnEngineStopped(ModularCar car)
+        {
+            foreach (var module in car.AttachedModuleEntities)
+            {
+                var turret = GetModuleAutoTurret(module);
+                if (turret == null || !turret.booting && !turret.IsOn())
+                    continue;
+
+                var electricSwitch = GetTurretSwitch(turret);
+                if (electricSwitch == null)
+                    continue;
+
+                turret.InitiateShutdown();
+            }
+        }
+
+        // This is only subscribed while OnlyPowerTurretsWhileEngineIsOn is true.
+        private bool? OnTurretStartup(AutoTurret turret)
+        {
+            var module = GetParentVehicleModule(turret);
+            if (module == null)
+                return null;
+
+            var car = module.Vehicle as ModularCar;
+            if (car == null)
+                return null;
+
+            if (!car.IsOn())
                 return false;
 
             return null;
@@ -512,21 +607,6 @@ namespace Oxide.Plugins
             return hookResult is bool && (bool)hookResult == false;
         }
 
-        private static void InitializeAutoTurrets()
-        {
-            foreach (var autoTurret in BaseNetworkable.serverEntities.OfType<AutoTurret>())
-            {
-                var vehicleModule = GetParentVehicleModule(autoTurret);
-                if (vehicleModule == null) continue;
-
-                RemoveProblemComponents(autoTurret);
-
-                var turretSwitch = autoTurret.GetComponentInChildren<ElectricSwitch>();
-                if (turretSwitch != null)
-                    SetupTurretSwitch(turretSwitch);
-            }
-        }
-
         private static BaseVehicleModule FindClosestModuleToAim(ModularCar car, BasePlayer basePlayer)
         {
             var headRay = basePlayer.eyes.HeadRay();
@@ -606,16 +686,22 @@ namespace Oxide.Plugins
             return numTurrets;
         }
 
-        private static AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule)
+        private static T GetChildOfType<T>(BaseEntity entity) where T : BaseEntity
         {
-            foreach (var child in vehicleModule.children)
+            foreach (var child in entity.children)
             {
-                var turret = child as AutoTurret;
-                if (turret != null)
-                    return turret;
+                var childOfType = child as T;
+                if (childOfType != null)
+                    return childOfType;
             }
             return null;
         }
+
+        private static AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule) =>
+            GetChildOfType<AutoTurret>(vehicleModule);
+
+        private static ElectricSwitch GetTurretSwitch(AutoTurret turret) =>
+            GetChildOfType<ElectricSwitch>(turret);
 
         private static bool IsNaturalCarSpawn(ModularCar car)
         {
@@ -649,6 +735,15 @@ namespace Oxide.Plugins
             Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
 
             return autoTurret;
+        }
+
+        private static void RefreshCarTurret(AutoTurret turret)
+        {
+            RemoveProblemComponents(turret);
+
+            var turretSwitch = GetTurretSwitch(turret);
+            if (turretSwitch != null)
+                SetupTurretSwitch(turretSwitch);
         }
 
         private static ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
@@ -917,6 +1012,9 @@ namespace Oxide.Plugins
             [JsonProperty("EnableTurretPickup")]
             public bool EnableTurretPickup = true;
 
+            [JsonProperty("OnlyPowerTurretsWhileEngineIsOn")]
+            public bool OnlyPowerTurretsWhileEngineIsOn = false;
+
             [JsonProperty("TargetNPCs")]
             public bool TargetNPCs = true;
 
@@ -1101,17 +1199,20 @@ namespace Oxide.Plugins
 
         #region Localization
 
+        private string GetMessage(string userId, string messageName, params object[] args)
+        {
+            var message = lang.GetMessage(messageName, this, userId);
+            return args.Length > 0 ? string.Format(message, args) : message;
+        }
+
+        private string GetMessage(IPlayer player, string messageName, params object[] args) =>
+            GetMessage(player.Id, messageName, args);
+
         private void ReplyToPlayer(IPlayer player, string messageName, params object[] args) =>
             player.Reply(string.Format(GetMessage(player, messageName), args));
 
         private void ChatMessage(BasePlayer basePlayer, string messageName, params object[] args) =>
-            basePlayer.ChatMessage(string.Format(GetMessage(basePlayer.IPlayer, messageName), args));
-
-        private string GetMessage(IPlayer player, string messageName, params object[] args)
-        {
-            var message = lang.GetMessage(messageName, this, player.Id);
-            return args.Length > 0 ? string.Format(message, args) : message;
-        }
+            basePlayer.ChatMessage(string.Format(GetMessage(basePlayer.UserIDString, messageName), args));
 
         private class Lang
         {
@@ -1127,6 +1228,7 @@ namespace Oxide.Plugins
             public const string DeployErrorNoTurret = "Deploy.Error.NoTurret";
             public const string RemoveErrorTurretHasItems = "Remove.Error.TurretHasItems";
             public const string RemoveAllSuccess = "RemoveAll.Success";
+            public const string InfoPowerRequiresEngine = "Info.PowerRequiresEngine";
         }
 
         protected override void LoadDefaultMessages()
@@ -1145,6 +1247,7 @@ namespace Oxide.Plugins
                 [Lang.DeployErrorNoTurret] = "Error: You need an auto turret to do that.",
                 [Lang.RemoveErrorTurretHasItems] = "Error: That module's turret must be empty.",
                 [Lang.RemoveAllSuccess] = "Removed all {0} car turrets.",
+                [Lang.InfoPowerRequiresEngine] = "The turret will power on when the car engine starts."
             }, this, "en");
         }
 
