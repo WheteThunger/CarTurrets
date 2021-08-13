@@ -76,6 +76,8 @@ namespace Oxide.Plugins
             foreach (var moduleItemShortName in _pluginConfig.ModulePositions.Keys)
                 permission.RegisterPermission(GetAutoTurretPermission(moduleItemShortName), this);
 
+            Unsubscribe(nameof(OnEntitySpawned));
+
             var dynamicHookNames = new List<string>()
             {
                 nameof(OnItemDropped),
@@ -84,9 +86,6 @@ namespace Oxide.Plugins
                 nameof(OnSwitchToggled),
                 nameof(OnTurretTarget),
             };
-
-            if (!_pluginConfig.SpawnWithCarConfig.Enabled)
-                Unsubscribe(nameof(OnEntitySpawned));
 
             if (_pluginConfig.EnableTurretPickup)
             {
@@ -153,11 +152,14 @@ namespace Oxide.Plugins
                         OnEngineStopped(car);
                 }
             }
+
+            if (_pluginConfig.SpawnWithCarConfig.Enabled)
+                Subscribe(nameof(OnEntitySpawned));
         }
 
         private void OnEntitySpawned(ModularCar car)
         {
-            if (Rust.Application.isLoadingSave || !ShouldSpawnTurretsWithCar(car))
+            if (!ShouldSpawnTurretsWithCar(car))
                 return;
 
             // Intentionally using both NextTick and Invoke.
