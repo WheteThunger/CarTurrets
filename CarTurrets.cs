@@ -869,8 +869,18 @@ namespace Oxide.Plugins
                 output.type = IOEntity.IOType.Generic;
         }
 
-        private static Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule) =>
-            vehicleModule.FirstSocketIndex + 1 > (car.TotalSockets + 1) / 2 ? TurretBackwardRotation : Quaternion.identity;
+        private static Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule)
+        {
+            var lastSocketIndex = vehicleModule.FirstSocketIndex + vehicleModule.GetNumSocketsTaken() - 1;
+
+            var faceForward = car.TotalSockets == 2
+                ? vehicleModule.FirstSocketIndex == 0
+                : car.TotalSockets == 3
+                ? lastSocketIndex <= 1
+                : vehicleModule.FirstSocketIndex <= 1;
+
+            return faceForward ? Quaternion.identity : TurretBackwardRotation;
+        }
 
         private static void RemoveProblemComponents(BaseEntity ent)
         {
