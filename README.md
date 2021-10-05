@@ -50,6 +50,7 @@ As an alternative to the `allmodules` permission, you can grant permissions by m
 - `carturrets.vehicle.2mod.flatbed`
 - `carturrets.vehicle.2mod.fuel.tank`
 - `carturrets.vehicle.2mod.passengers`
+- `carturrets.vehicle.2mod.camper`
 
 The following permissions determine the maximum number of turrets that can be deployed to a car owned by the player, overriding the `DefaultLimitPerCar` option in the plugin configuration.
 - `carturrets.limit.2` -- Allows cars owned by the player to receive at most 2 turrets.
@@ -89,7 +90,8 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
       "vehicle.1mod.taxi": 0,
       "vehicle.2mod.flatbed": 0,
       "vehicle.2mod.fuel.tank": 0,
-      "vehicle.2mod.passengers": 0
+      "vehicle.2mod.passengers": 0,
+      "vehicle.2mod.camper": 0
     }
   },
   "AutoTurretPositionByModule": {
@@ -152,6 +154,11 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
       "x": 0.0,
       "y": 1.4,
       "z": -0.9
+    },
+    "vehicle.2mod.camper": {
+      "x": 0.0,
+      "y": 1.4,
+      "z": -1.6
     }
   }
 }
