@@ -26,7 +26,7 @@ Deploying an auto turret to a car module will consume an auto turret item from t
 ## Commands
 
 - `carturret` -- Deploy an auto turret onto the car module you are aiming at. You must not be building blocked. You must be within several meters of the car.
-- `carturrets.removall` -- Removes all turrets from all cars.
+- `carturrets.removeall` -- Removes all turrets from all cars.
 
 ## Permissions
 
