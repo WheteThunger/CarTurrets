@@ -1367,6 +1367,23 @@ namespace Oxide.Plugins
                 [Lang.RemoveAllSuccess] = "Removed all {0} car turrets.",
                 [Lang.InfoPowerRequiresEngine] = "The turret will power on when the car engine starts."
             }, this, "en");
+            //Adding translation in portuguese brazil
+            lang.RegisterMessages(new Dictionary<string, string>
+            {
+                [Lang.GenericErrorNoPermission] = "Você não tem permissão para fazer isso.",
+                [Lang.GenericErrorBuildingBlocked] = "Erro: Não é possível fazer isso enquanto o prédio está bloqueado.",
+                [Lang.DeployErrorNoCarFound] = "Erro: nenhum carro encontrado.",
+                [Lang.DeployErrorNoModules] = "Erro: esse carro não tem módulos.",
+                [Lang.DeployErrorNoPermissionToModule] = "Você não tem permissão para fazer isso com esse tipo de módulo.",
+                [Lang.DeployErrorModuleAlreadyHasTurret] = "Erro: esse módulo já tem uma turret.",
+                [Lang.DeployErrorUnsupportedModule] = "Erro: esse módulo não é compatível.",
+                [Lang.DeployErrorTurretLimit] = "Erro: esse carro só pode ter {0} torreta(s).",
+                [Lang.DeployErrorNoSuitableModule] = "Erro: Nenhum módulo adequado encontrado.",
+                [Lang.DeployErrorNoTurret] = "Erro: você precisa de uma turret automática para fazer isso.",
+                [Lang.RemoveErrorTurretHasItems] = "Erro: a torre desse módulo deve estar vazia.",
+                [Lang.RemoveAllSuccess] = "Removidas todas as {0} turrets do carro.",
+                [Lang.InfoPowerRequiresEngine] = "A torre será ligada quando o motor do carro ligar."
+            }, this, "pt-BR");
         }
 
         #endregion
