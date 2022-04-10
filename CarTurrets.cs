@@ -100,13 +100,13 @@ namespace Oxide.Plugins
 
             if (!_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
             {
-                Unsubscribe(nameof(OnEngineStarted));
+                Unsubscribe(nameof(OnEngineStartFinished));
                 Unsubscribe(nameof(OnEngineStopped));
                 Unsubscribe(nameof(OnTurretStartup));
             }
             else
             {
-                dynamicHookNames.Add(nameof(OnEngineStarted));
+                dynamicHookNames.Add(nameof(OnEngineStartFinished));
                 dynamicHookNames.Add(nameof(OnEngineStopped));
                 dynamicHookNames.Add(nameof(OnTurretStartup));
             }
@@ -147,7 +147,7 @@ namespace Oxide.Plugins
                 if (_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
                 {
                     if (car.IsOn())
-                        OnEngineStarted(car);
+                        OnEngineStartFinished(car);
                     else
                         OnEngineStopped(car);
                 }
@@ -505,7 +505,7 @@ namespace Oxide.Plugins
         }
 
         // This is only subscribed while OnlyPowerTurretsWhileEngineIsOn is true.
-        private void OnEngineStarted(ModularCar car)
+        private void OnEngineStartFinished(ModularCar car)
         {
             foreach (var module in car.AttachedModuleEntities)
             {
