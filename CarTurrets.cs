@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Modular Car Turrets", "WhiteThunder", "1.4.0")]
+    [Info("Modular Car Turrets", "WhiteThunder", "1.4.1")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -904,6 +904,7 @@ namespace Oxide.Plugins
 
         private void SetupCarTurret(AutoTurret turret)
         {
+            turret.gameObject.layer = (int)Rust.Layer.Vehicle_Detailed;
             RemoveProblemComponents(turret);
             _carTurretTracker.Add(turret.net.ID);
         }
