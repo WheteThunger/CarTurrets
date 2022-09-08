@@ -19,7 +19,7 @@ namespace Oxide.Plugins
         #region Fields
 
         [PluginReference]
-        Plugin VehicleDeployedLocks;
+        private readonly Plugin VehicleDeployedLocks;
 
         private static CarTurrets _pluginInstance;
         private static Configuration _pluginConfig;
@@ -48,6 +48,8 @@ namespace Oxide.Plugins
         private static readonly Vector3 TurretSwitchPosition = new Vector3(0, -0.64f, -0.32f);
         private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
         private static readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
+
+        private readonly object False = false;
 
         private DynamicHookSubscriber<uint> _carTurretTracker;
 
@@ -199,34 +201,41 @@ namespace Oxide.Plugins
             });
         }
 
-        private bool? CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
+        private object CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
         {
             if (item == null || playerInventory == null)
                 return null;
 
-            var basePlayer = playerInventory.GetComponent<BasePlayer>();
+            var basePlayer = playerInventory.baseEntity;
             if (basePlayer == null)
                 return null;
 
-            var targetContainer = playerInventory.FindContainer(targetContainerId);
-            if (item.parent == null || item.parent == targetContainer)
+            if (item.parent == null || item.parent.uid == targetContainerId)
                 return null;
 
-            var fromCar = item.parent.entityOwner as ModularCar;
-            if (fromCar != null)
-                return HandleRemoveTurret(basePlayer, item, fromCar, targetContainer);
+            if (playerInventory.loot.containers.Contains(item.parent))
+            {
+                // Player is moving an item from the loot panel.
+                var fromCar = item.parent.entityOwner as ModularCar;
+                if (fromCar == null)
+                    return null;
 
-            if (targetContainer == null)
+                return HandleRemoveTurret(basePlayer, item, fromCar);
+            }
+
+            // Player is moving an item to the loot panel (module inventory is at position 1).
+            var targetContainer = targetContainerId != 0
+                ? playerInventory.loot.FindContainer(targetContainerId)
+                : playerInventory.loot.containers.ElementAtOrDefault(1);
+
+            var toCar = targetContainer?.entityOwner as ModularCar;
+            if ((object)toCar == null)
                 return null;
 
-            var toCar = targetContainer.entityOwner as ModularCar;
-            if (toCar != null)
-                return HandleAddTurret(basePlayer, item, toCar, targetContainer, targetSlot);
-
-            return null;
+            return HandleAddTurret(basePlayer, item, toCar, targetContainer, targetSlot);
         }
 
-        private bool? HandleAddTurret(BasePlayer basePlayer, Item item, ModularCar car, ItemContainer targetContainer, int targetSlot)
+        private object HandleAddTurret(BasePlayer basePlayer, Item item, ModularCar car, ItemContainer targetContainer, int targetSlot)
         {
             var player = basePlayer.IPlayer;
 
@@ -287,10 +296,10 @@ namespace Oxide.Plugins
             if (!player.HasPermission(Permission_Free))
                 UseItem(basePlayer, item);
 
-            return false;
+            return False;
         }
 
-        private bool? HandleRemoveTurret(BasePlayer basePlayer, Item moduleItem, ModularCar car, ItemContainer targetContainer)
+        private object HandleRemoveTurret(BasePlayer basePlayer, Item moduleItem, ModularCar car, ItemContainer targetContainer = null)
         {
             if (car.Inventory.ModuleContainer != moduleItem.parent)
                 return null;
@@ -308,7 +317,7 @@ namespace Oxide.Plugins
                 if (autoTurret.pickup.requireEmptyInv && !autoTurret.inventory.IsEmpty() && !autoTurret.inventory.IsLocked())
                 {
                     ChatMessage(basePlayer, Lang.RemoveErrorTurretHasItems);
-                    return false;
+                    return False;
                 }
 
                 var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
@@ -323,13 +332,13 @@ namespace Oxide.Plugins
                     if (!basePlayer.inventory.GiveItem(turretItem))
                     {
                         turretItem.Remove();
-                        return false;
+                        return False;
                     }
                 }
                 else if (!turretItem.MoveToContainer(targetContainer))
                 {
                     turretItem.Remove();
-                    return false;
+                    return False;
                 }
 
                 basePlayer.Command("note.inv", ItemId_AutoTurret, 1);
@@ -410,7 +419,7 @@ namespace Oxide.Plugins
             _carTurretTracker.Remove(turret.net.ID);
         }
 
-        private bool? OnSwitchToggle(ElectricSwitch electricSwitch, BasePlayer player)
+        private object OnSwitchToggle(ElectricSwitch electricSwitch, BasePlayer player)
         {
             var turret = GetParentTurret(electricSwitch);
             if (turret == null)
@@ -428,7 +437,7 @@ namespace Oxide.Plugins
             {
                 // Disallow switching the turret on and off while building blocked.
                 Effect.server.Run(Prefab_Effect_CodeLockDenied, electricSwitch, 0, Vector3.zero, Vector3.forward);
-                return false;
+                return False;
             }
 
             return null;
@@ -461,23 +470,23 @@ namespace Oxide.Plugins
             }
         }
 
-        private bool? OnTurretTarget(AutoTurret turret, BaseCombatEntity target)
+        private object OnTurretTarget(AutoTurret turret, BaseCombatEntity target)
         {
             if (turret == null || target == null || GetParentVehicleModule(turret) == null)
                 return null;
 
             if (target is BaseAnimalNPC && !_pluginConfig.TargetAnimals)
-                return false;
+                return False;
 
             var basePlayer = target as BasePlayer;
             if (basePlayer != null)
             {
                 if (basePlayer.IsNpc && !_pluginConfig.TargetNPCs)
-                    return false;
+                    return False;
 
                 // Don't target human or NPC players in safe zones, unless they are hostile.
                 if (basePlayer.InSafeZone() && (basePlayer.IsNpc || !basePlayer.IsHostile()))
-                    return false;
+                    return False;
 
                 return null;
             }
@@ -486,20 +495,20 @@ namespace Oxide.Plugins
         }
 
         // This is only subscribed while config option EnableTurretPickup is false.
-        private bool? CanPickupEntity(BasePlayer player, AutoTurret turret)
+        private object CanPickupEntity(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
-                return false;
+                return False;
 
             return null;
         }
 
         // This hook is exposed by plugin: Remover Tool (RemoverTool).
         // Only subscribed while config option EnableTurretPickup is false.
-        private bool? canRemove(BasePlayer player, AutoTurret turret)
+        private object canRemove(BasePlayer player, AutoTurret turret)
         {
             if (GetParentVehicleModule(turret) != null)
-                return false;
+                return False;
 
             return null;
         }
@@ -539,7 +548,7 @@ namespace Oxide.Plugins
         }
 
         // This is only subscribed while OnlyPowerTurretsWhileEngineIsOn is true.
-        private bool? OnTurretStartup(AutoTurret turret)
+        private object OnTurretStartup(AutoTurret turret)
         {
             var module = GetParentVehicleModule(turret);
             if (module == null)
@@ -550,7 +559,7 @@ namespace Oxide.Plugins
                 return null;
 
             if (!car.IsOn())
-                return false;
+                return False;
 
             return null;
         }
