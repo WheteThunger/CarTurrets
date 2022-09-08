@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Modular Car Turrets", "WhiteThunder", "1.4.1")]
+    [Info("Modular Car Turrets", "WhiteThunder", "1.5.0")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -475,13 +475,16 @@ namespace Oxide.Plugins
             if (turret == null || target == null || GetParentVehicleModule(turret) == null)
                 return null;
 
-            if (target is BaseAnimalNPC && !_pluginConfig.TargetAnimals)
+            if (!_pluginConfig.TargetAnimals && target is BaseAnimalNPC)
                 return False;
 
             var basePlayer = target as BasePlayer;
             if (basePlayer != null)
             {
-                if (basePlayer.IsNpc && !_pluginConfig.TargetNPCs)
+                if (!_pluginConfig.TargetNPCs && basePlayer.IsNpc)
+                    return False;
+
+                if (!_pluginConfig.TargetPlayers && basePlayer.userID.IsSteamId())
                     return False;
 
                 // Don't target human or NPC players in safe zones, unless they are hostile.
@@ -1140,6 +1143,9 @@ namespace Oxide.Plugins
 
             [JsonProperty("OnlyPowerTurretsWhileEngineIsOn")]
             public bool OnlyPowerTurretsWhileEngineIsOn = false;
+
+            [JsonProperty("TargetPlayers")]
+            public bool TargetPlayers = true;
 
             [JsonProperty("TargetNPCs")]
             public bool TargetNPCs = true;

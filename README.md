@@ -68,6 +68,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
   "DefaultLimitPerCar": 4,
   "EnableTurretPickup": true,
   "OnlyPowerTurretsWhileEngineIsOn": false,
+  "TargetPlayers": true,
   "TargetNPCs": true,
   "TargetAnimals": true,
   "SpawnWithCar": {
@@ -168,6 +169,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
   - Note: You can also reduce the practical limit of auto turrets per car by restricting which modules they can be deployed to. For example, if you only allow auto turrets to be deployed to flatbed modules, a 2-socket car can have at most one auto turret (assuming it's driveable). For longer cars, players will have to choose between more turrets and other utilities. You can also restrict turrets to only 2-socket modules.
 - `EnableTurretPickup` (`true` or `false`) -- While `false`, car turrets cannot be picked up with a hammer or with the RemoverTool pugin, and removing a module from a car will destroy the turret without adding an auto turret item to the player inventory.
 - `OnlyPowerTurretsWhileEngineIsOn` (`true` or `false`) -- While `true`, turrets will not be powered unless the engine is on.
+- `TargetPlayers` (`true` or `false`) -- Whether car-mounted turrets should target real players.
 - `TargetNPCs` (`true` or `false`) -- Whether car-mounted turrets should target NPCs.
 - `TargetAnimals` (`true` or `false`) -- Whether car-mounted turrets should target NPC animals such as bears.
 - `SpawnWithCar` -- Settings for automatically adding turrets to cars when they spawn.
