@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Modular Car Turrets", "WhiteThunder", "1.5.0")]
+    [Info("Modular Car Turrets", "WhiteThunder", "1.5.1")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -894,13 +894,18 @@ namespace Oxide.Plugins
             return faceForward ? Quaternion.identity : TurretBackwardRotation;
         }
 
-        private static void RemoveProblemComponents(BaseEntity ent)
+        private static void RemoveColliders<T>(BaseEntity entity) where T : Collider
         {
-            foreach (var meshCollider in ent.GetComponentsInChildren<MeshCollider>())
-                UnityEngine.Object.DestroyImmediate(meshCollider);
+            foreach (var collider in entity.GetComponentsInChildren<T>())
+            {
+                UnityEngine.Object.DestroyImmediate(collider);
+            }
+        }
 
-            UnityEngine.Object.DestroyImmediate(ent.GetComponent<DestroyOnGroundMissing>());
-            UnityEngine.Object.DestroyImmediate(ent.GetComponent<GroundWatch>());
+        private static void RemoveGroundWatch(BaseEntity entity)
+        {
+            UnityEngine.Object.DestroyImmediate(entity.GetComponent<DestroyOnGroundMissing>());
+            UnityEngine.Object.DestroyImmediate(entity.GetComponent<GroundWatch>());
         }
 
         private static BaseEntity GetLookEntity(BasePlayer basePlayer, float maxDistance = 3)
@@ -917,7 +922,8 @@ namespace Oxide.Plugins
         private void SetupCarTurret(AutoTurret turret)
         {
             turret.gameObject.layer = (int)Rust.Layer.Vehicle_Detailed;
-            RemoveProblemComponents(turret);
+            RemoveColliders<MeshCollider>(turret);
+            RemoveGroundWatch(turret);
             _carTurretTracker.Add(turret.net.ID);
         }
 
@@ -968,7 +974,8 @@ namespace Oxide.Plugins
             electricSwitch.pickup.enabled = false;
             electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
             electricSwitch.baseProtection = ImmortalProtection;
-            RemoveProblemComponents(electricSwitch);
+            RemoveColliders<Collider>(electricSwitch);
+            RemoveGroundWatch(electricSwitch);
             HideInputsAndOutputs(electricSwitch);
         }
 
