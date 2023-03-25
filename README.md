@@ -59,7 +59,7 @@ The following permissions determine the maximum number of turrets that can be de
 
 If multiple of these permissions are granted to a player, the highest will be used.
 
-Car ownership is determined by the `OwnerID` property of the car, which is usually a player's Steam ID, or `0` for no owner. Various plugins can spawn cars with a set owner, such as [Spawn Modular Car](https://umod.org/plugins/spawn-modular-car) or [Craft Car Chassis](https://umod.org/plugins/craft-car-chassis), while other plugins allow the owner to change with certain events, such as [Claim Vehicle Ownership](https://umod.org/plugins/claim-vehicle-ownership).
+Car ownership is determined by the `OwnerID` property of the car, which is usually a player's Steam ID, or `0` for no owner. Various plugins can spawn cars with a set owner, such as [Spawn Modular Car](https://umod.org/plugins/spawn-modular-car) or [Craft Car Chassis](https://umod.org/plugins/craft-car-chassis), while other plugins allow the owner to change with certain events, such as [Claim Vehicle](https://umod.org/plugins/claim-vehicle).
 
 ## Configuration
 
