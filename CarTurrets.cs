@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Modular Car Turrets", "WhiteThunder", "1.5.1")]
+    [Info("Car Turrets", "WhiteThunder", "1.5.1")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
