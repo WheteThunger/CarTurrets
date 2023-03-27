@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using Oxide.Core;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
@@ -21,29 +20,28 @@ namespace Oxide.Plugins
         [PluginReference]
         private readonly Plugin VehicleDeployedLocks;
 
-        private static CarTurrets _pluginInstance;
-        private static Configuration _pluginConfig;
+        private Configuration _config;
 
-        private const string Permission_DeployCommand = "carturrets.deploy.command";
-        private const string Permission_DeployInventory = "carturrets.deploy.inventory";
-        private const string Permission_Free = "carturrets.free";
-        private const string Permission_RemoveAll = "carturrets.removeall";
+        private const string PermissionDeployCommand = "carturrets.deploy.command";
+        private const string PermissionDeployInventory = "carturrets.deploy.inventory";
+        private const string PermissionFree = "carturrets.free";
+        private const string PermissionRemoveAll = "carturrets.removeall";
 
-        private const string Permission_Limit_2 = "carturrets.limit.2";
-        private const string Permission_Limit_3 = "carturrets.limit.3";
-        private const string Permission_Limit_4 = "carturrets.limit.4";
+        private const string PermissionLimit2 = "carturrets.limit.2";
+        private const string PermissionLimit3 = "carturrets.limit.3";
+        private const string PermissionLimit4 = "carturrets.limit.4";
 
-        private const string Permission_SpawnWithCar = "carturrets.spawnwithcar";
+        private const string PermissionSpawnWithCar = "carturrets.spawnwithcar";
 
-        private const string Permission_AllModules = "carturrets.allmodules";
-        private const string Permission_ModuleFormat = "carturrets.{0}";
+        private const string PermissionAllModules = "carturrets.allmodules";
+        private const string PermissionModuleFormat = "carturrets.{0}";
 
-        private const string Prefab_Entity_AutoTurret = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
-        private const string Prefab_Entity_ElectricSwitch = "assets/prefabs/deployable/playerioents/simpleswitch/switch.prefab";
-        private const string Prefab_Effect_DeployAutoTurret = "assets/prefabs/npc/autoturret/effects/autoturret-deploy.prefab";
-        private const string Prefab_Effect_CodeLockDenied = "assets/prefabs/locks/keypad/effects/lock.code.denied.prefab";
+        private const string PrefabEntityAutoTurret = "assets/prefabs/npc/autoturret/autoturret_deployed.prefab";
+        private const string PrefabEntityElectricSwitch = "assets/prefabs/deployable/playerioents/simpleswitch/switch.prefab";
+        private const string PrefabEffectDeployAutoTurret = "assets/prefabs/npc/autoturret/effects/autoturret-deploy.prefab";
+        private const string PrefabEffectCodeLockDenied = "assets/prefabs/locks/keypad/effects/lock.code.denied.prefab";
 
-        private const int ItemId_AutoTurret = -2139580305;
+        private const int ItemIdAutoTurret = -2139580305;
 
         private static readonly Vector3 TurretSwitchPosition = new Vector3(0, -0.64f, -0.32f);
         private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
@@ -52,7 +50,6 @@ namespace Oxide.Plugins
         private readonly object False = false;
 
         private DynamicHookSubscriber<uint> _carTurretTracker;
-
         private ProtectionProperties ImmortalProtection;
 
         #endregion
@@ -61,22 +58,22 @@ namespace Oxide.Plugins
 
         private void Init()
         {
-            _pluginInstance = this;
+            permission.RegisterPermission(PermissionDeployCommand, this);
+            permission.RegisterPermission(PermissionDeployInventory, this);
+            permission.RegisterPermission(PermissionFree, this);
+            permission.RegisterPermission(PermissionRemoveAll, this);
 
-            permission.RegisterPermission(Permission_DeployCommand, this);
-            permission.RegisterPermission(Permission_DeployInventory, this);
-            permission.RegisterPermission(Permission_Free, this);
-            permission.RegisterPermission(Permission_RemoveAll, this);
+            permission.RegisterPermission(PermissionLimit2, this);
+            permission.RegisterPermission(PermissionLimit3, this);
+            permission.RegisterPermission(PermissionLimit4, this);
 
-            permission.RegisterPermission(Permission_Limit_2, this);
-            permission.RegisterPermission(Permission_Limit_3, this);
-            permission.RegisterPermission(Permission_Limit_4, this);
+            permission.RegisterPermission(PermissionSpawnWithCar, this);
 
-            permission.RegisterPermission(Permission_SpawnWithCar, this);
-
-            permission.RegisterPermission(Permission_AllModules, this);
-            foreach (var moduleItemShortName in _pluginConfig.ModulePositions.Keys)
+            permission.RegisterPermission(PermissionAllModules, this);
+            foreach (var moduleItemShortName in _config.ModulePositions.Keys)
+            {
                 permission.RegisterPermission(GetAutoTurretPermission(moduleItemShortName), this);
+            }
 
             Unsubscribe(nameof(OnEntitySpawned));
 
@@ -89,7 +86,7 @@ namespace Oxide.Plugins
                 nameof(OnTurretTarget),
             };
 
-            if (_pluginConfig.EnableTurretPickup)
+            if (_config.EnableTurretPickup)
             {
                 Unsubscribe(nameof(CanPickupEntity));
                 Unsubscribe(nameof(canRemove));
@@ -100,7 +97,7 @@ namespace Oxide.Plugins
                 dynamicHookNames.Add(nameof(canRemove));
             }
 
-            if (!_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
+            if (!_config.OnlyPowerTurretsWhileEngineIsOn)
             {
                 Unsubscribe(nameof(OnEngineStartFinished));
                 Unsubscribe(nameof(OnEngineStopped));
@@ -113,16 +110,13 @@ namespace Oxide.Plugins
                 dynamicHookNames.Add(nameof(OnTurretStartup));
             }
 
-            _carTurretTracker = new DynamicHookSubscriber<uint>(dynamicHookNames.ToArray());
+            _carTurretTracker = new DynamicHookSubscriber<uint>(this, dynamicHookNames.ToArray());
             _carTurretTracker.UnsubscribeAll();
         }
 
         private void Unload()
         {
             UnityEngine.Object.Destroy(ImmortalProtection);
-
-            _pluginConfig = null;
-            _pluginInstance = null;
         }
 
         private void OnServerInitialized()
@@ -146,17 +140,23 @@ namespace Oxide.Plugins
                     RefreshCarTurret(turret);
                 }
 
-                if (_pluginConfig.OnlyPowerTurretsWhileEngineIsOn)
+                if (_config.OnlyPowerTurretsWhileEngineIsOn)
                 {
                     if (car.IsOn())
+                    {
                         OnEngineStartFinished(car);
+                    }
                     else
+                    {
                         OnEngineStopped(car);
+                    }
                 }
             }
 
-            if (_pluginConfig.SpawnWithCarConfig.Enabled)
+            if (_config.SpawnWithCarConfig.Enabled)
+            {
                 Subscribe(nameof(OnEntitySpawned));
+            }
         }
 
         private void OnEntitySpawned(ModularCar car)
@@ -240,14 +240,14 @@ namespace Oxide.Plugins
             var player = basePlayer.IPlayer;
 
             var itemid = item.info.itemid;
-            if (itemid != ItemId_AutoTurret)
+            if (itemid != ItemIdAutoTurret)
                 return null;
 
             // In case a future update or a plugin adds another storage container to the car.
             if (car.Inventory.ModuleContainer != targetContainer)
                 return null;
 
-            if (!player.HasPermission(Permission_DeployInventory))
+            if (!player.HasPermission(PermissionDeployInventory))
             {
                 ChatMessage(basePlayer, Lang.GenericErrorNoPermission);
                 return null;
@@ -257,7 +257,9 @@ namespace Oxide.Plugins
                 return null;
 
             if (targetSlot == -1)
+            {
                 targetSlot = FindFirstSuitableSocketIndex(car, basePlayer);
+            }
 
             if (targetSlot == -1)
             {
@@ -286,15 +288,17 @@ namespace Oxide.Plugins
             }
 
             Vector3 position;
-            if (!TryGetAutoTurretPositionForModule(vehicleModule, out position) ||
-                DeployWasBlocked(vehicleModule, basePlayer))
+            if (!TryGetAutoTurretPositionForModule(vehicleModule, out position)
+                || DeployWasBlocked(vehicleModule, basePlayer))
                 return null;
 
             if (DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer, GetItemConditionFraction(item)) == null)
                 return null;
 
-            if (!player.HasPermission(Permission_Free))
+            if (!player.HasPermission(PermissionFree))
+            {
                 UseItem(basePlayer, item);
+            }
 
             return False;
         }
@@ -312,7 +316,7 @@ namespace Oxide.Plugins
             if (autoTurret == null)
                 return null;
 
-            if (_pluginConfig.EnableTurretPickup && autoTurret.pickup.enabled)
+            if (_config.EnableTurretPickup && autoTurret.pickup.enabled)
             {
                 if (autoTurret.pickup.requireEmptyInv && !autoTurret.inventory.IsEmpty() && !autoTurret.inventory.IsLocked())
                 {
@@ -320,12 +324,14 @@ namespace Oxide.Plugins
                     return False;
                 }
 
-                var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
+                var turretItem = ItemManager.CreateByItemID(ItemIdAutoTurret);
                 if (turretItem == null)
                     return null;
 
                 if (turretItem.info.condition.enabled)
+                {
                     turretItem.condition = autoTurret.healthFraction * 100;
+                }
 
                 if (targetContainer == null)
                 {
@@ -341,7 +347,7 @@ namespace Oxide.Plugins
                     return False;
                 }
 
-                basePlayer.Command("note.inv", ItemId_AutoTurret, 1);
+                basePlayer.Command("note.inv", ItemIdAutoTurret, 1);
             }
 
             autoTurret.Kill();
@@ -350,7 +356,7 @@ namespace Oxide.Plugins
 
         private void OnItemDropped(Item item, BaseEntity itemEntity)
         {
-            if (item == null || item.parent == null)
+            if (item?.parent == null)
                 return;
 
             var car = item.parent.entityOwner as ModularCar;
@@ -368,7 +374,7 @@ namespace Oxide.Plugins
             if (autoTurret == null)
                 return;
 
-            if (_pluginConfig.EnableTurretPickup && autoTurret.pickup.enabled)
+            if (_config.EnableTurretPickup && autoTurret.pickup.enabled)
             {
                 var turretItem = CreateItemFromAutoTurret(autoTurret);
                 if (turretItem == null)
@@ -397,19 +403,27 @@ namespace Oxide.Plugins
 
             autoTurret.SetParent(null);
 
+            var moduleItem2 = moduleItem;
+            var car2 = car;
+            var autoTurret2 = autoTurret;
+
             NextTick(() =>
             {
-                if (car == null)
+                if (car2 == null)
                 {
-                    autoTurret.Kill();
+                    autoTurret2.Kill();
                 }
                 else
                 {
-                    var newModule = car.GetModuleForItem(moduleItem);
+                    var newModule = car2.GetModuleForItem(moduleItem2);
                     if (newModule == null)
-                        autoTurret.Kill();
+                    {
+                        autoTurret2.Kill();
+                    }
                     else
-                        autoTurret.SetParent(newModule);
+                    {
+                        autoTurret2.SetParent(newModule);
+                    }
                 }
             });
         }
@@ -436,7 +450,7 @@ namespace Oxide.Plugins
             if (!player.CanBuild())
             {
                 // Disallow switching the turret on and off while building blocked.
-                Effect.server.Run(Prefab_Effect_CodeLockDenied, electricSwitch, 0, Vector3.zero, Vector3.forward);
+                Effect.server.Run(PrefabEffectCodeLockDenied, electricSwitch, 0, Vector3.zero, Vector3.forward);
                 return False;
             }
 
@@ -459,10 +473,14 @@ namespace Oxide.Plugins
 
             if (electricSwitch.IsOn())
             {
-                if (_pluginConfig.OnlyPowerTurretsWhileEngineIsOn && !car.IsOn())
+                if (_config.OnlyPowerTurretsWhileEngineIsOn && !car.IsOn())
+                {
                     ChatMessage(player, Lang.InfoPowerRequiresEngine);
+                }
                 else
+                {
                     turret.InitiateStartup();
+                }
             }
             else
             {
@@ -475,16 +493,16 @@ namespace Oxide.Plugins
             if (turret == null || target == null || GetParentVehicleModule(turret) == null)
                 return null;
 
-            if (!_pluginConfig.TargetAnimals && target is BaseAnimalNPC)
+            if (!_config.TargetAnimals && target is BaseAnimalNPC)
                 return False;
 
             var basePlayer = target as BasePlayer;
             if (basePlayer != null)
             {
-                if (!_pluginConfig.TargetNPCs && basePlayer.IsNpc)
+                if (!_config.TargetNPCs && basePlayer.IsNpc)
                     return False;
 
-                if (!_pluginConfig.TargetPlayers && basePlayer.userID.IsSteamId())
+                if (!_config.TargetPlayers && basePlayer.userID.IsSteamId())
                     return False;
 
                 // Don't target human or NPC players in safe zones, unless they are hostile.
@@ -571,7 +589,8 @@ namespace Oxide.Plugins
 
         #region API
 
-        private AutoTurret API_DeployAutoTurret(BaseVehicleModule vehicleModule, BasePlayer basePlayer)
+        [HookMethod(nameof(API_DeployAutoTurret))]
+        public AutoTurret API_DeployAutoTurret(BaseVehicleModule vehicleModule, BasePlayer basePlayer)
         {
             var car = vehicleModule.Vehicle as ModularCar;
             if (car == null)
@@ -583,10 +602,9 @@ namespace Oxide.Plugins
                 DeployWasBlocked(vehicleModule, basePlayer))
                 return null;
 
-            if (basePlayer == null)
-                return DeployAutoTurret(car, vehicleModule, position);
-            else
-                return DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer);
+            return basePlayer == null
+                ? DeployAutoTurret(car, vehicleModule, position)
+                : DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer);
         }
 
         #endregion
@@ -596,7 +614,7 @@ namespace Oxide.Plugins
         [Command("carturret")]
         private void CommandDeploy(IPlayer player, string cmd, string[] args)
         {
-            if (player.IsServer || !VerifyPermissionAny(player, Permission_DeployCommand))
+            if (player.IsServer || !VerifyPermissionAny(player, PermissionDeployCommand))
                 return;
 
             var basePlayer = player.Object as BasePlayer;
@@ -626,7 +644,7 @@ namespace Oxide.Plugins
             Item autoTurretItem = null;
             var conditionFraction = 1.0f;
 
-            var isFree = player.HasPermission(Permission_Free);
+            var isFree = player.HasPermission(PermissionFree);
             if (!isFree)
             {
                 autoTurretItem = FindPlayerAutoTurretItem(basePlayer);
@@ -635,6 +653,7 @@ namespace Oxide.Plugins
                     ReplyToPlayer(player, Lang.DeployErrorNoTurret);
                     return;
                 }
+
                 conditionFraction = GetItemConditionFraction(autoTurretItem);
             }
 
@@ -642,13 +661,15 @@ namespace Oxide.Plugins
                 return;
 
             if (DeployAutoTurretForPlayer(car, vehicleModule, position, basePlayer, conditionFraction) != null && !isFree && autoTurretItem != null)
+            {
                 UseItem(basePlayer, autoTurretItem);
+            }
         }
 
         [Command("carturrets.removeall")]
         private void CommandRemoveAllCarTurrets(IPlayer player, string cmd, string[] args)
         {
-            if (!player.IsServer && !VerifyPermissionAny(player, Permission_RemoveAll))
+            if (!player.IsServer && !VerifyPermissionAny(player, PermissionRemoveAll))
                 return;
 
             var turretsRemoved = 0;
@@ -671,8 +692,10 @@ namespace Oxide.Plugins
         private bool VerifyPermissionAny(IPlayer player, params string[] permissionNames)
         {
             foreach (var perm in permissionNames)
+            {
                 if (player.HasPermission(perm))
                     return true;
+            }
 
             ReplyToPlayer(player, Lang.GenericErrorNoPermission);
             return false;
@@ -715,8 +738,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            BaseVehicleModule closestModule = FindClosestModuleToAim(car, basePlayer);
-
+            var closestModule = FindClosestModuleToAim(car, basePlayer);
             if (closestModule != null)
             {
                 vehicleModule = closestModule;
@@ -734,9 +756,13 @@ namespace Oxide.Plugins
                 return true;
 
             if (replyInChat)
+            {
                 ChatMessage(player.Object as BasePlayer, Lang.DeployErrorTurretLimit, limit);
+            }
             else
+            {
                 ReplyToPlayer(player, Lang.DeployErrorTurretLimit, limit);
+            }
 
             return false;
         }
@@ -756,7 +782,7 @@ namespace Oxide.Plugins
 
         private static bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer, bool automatedDeployment = false)
         {
-            object hookResult = Interface.CallHook("OnCarAutoTurretDeploy", vehicleModule, basePlayer, automatedDeployment);
+            var hookResult = Interface.CallHook("OnCarAutoTurretDeploy", vehicleModule, basePlayer, automatedDeployment);
             return hookResult is bool && (bool)hookResult == false;
         }
 
@@ -798,34 +824,46 @@ namespace Oxide.Plugins
                 item.Remove();
             }
             else
+            {
                 item.MarkDirty();
+            }
 
             basePlayer.Command("note.inv", item.info.itemid, -amountToConsume);
         }
 
-        private static float GetItemConditionFraction(Item item) =>
-            item.hasCondition ? item.condition / item.info.condition.max : 1.0f;
+        private static float GetItemConditionFraction(Item item)
+        {
+            return item.hasCondition ? item.condition / item.info.condition.max : 1.0f;
+        }
 
-        private static Item FindPlayerAutoTurretItem(BasePlayer basePlayer) =>
-            basePlayer.inventory.FindItemID(ItemId_AutoTurret);
+        private static Item FindPlayerAutoTurretItem(BasePlayer basePlayer)
+        {
+            return basePlayer.inventory.FindItemID(ItemIdAutoTurret);
+        }
 
         private static Item CreateItemFromAutoTurret(AutoTurret autoTurret)
         {
-            var turretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
+            var turretItem = ItemManager.CreateByItemID(ItemIdAutoTurret);
             if (turretItem == null)
                 return null;
 
             if (turretItem.info.condition.enabled)
+            {
                 turretItem.condition = autoTurret.healthFraction * 100;
+            }
 
             return turretItem;
         }
 
-        private static string GetAutoTurretPermissionForModule(BaseVehicleModule vehicleModule) =>
-            GetAutoTurretPermission(vehicleModule.AssociatedItemDef.shortname);
+        private static string GetAutoTurretPermissionForModule(BaseVehicleModule vehicleModule)
+        {
+            return GetAutoTurretPermission(vehicleModule.AssociatedItemDef.shortname);
+        }
 
-        private static string GetAutoTurretPermission(string moduleItemShrotName) =>
-            string.Format(Permission_ModuleFormat, moduleItemShrotName);
+        private static string GetAutoTurretPermission(string moduleItemShortName)
+        {
+            return string.Format(PermissionModuleFormat, moduleItemShortName);
+        }
 
         private static int GetCarTurretCount(ModularCar car)
         {
@@ -834,8 +872,11 @@ namespace Oxide.Plugins
             {
                 var turret = GetModuleAutoTurret(module);
                 if (turret != null)
+                {
                     numTurrets++;
+                }
             }
+
             return numTurrets;
         }
 
@@ -847,14 +888,19 @@ namespace Oxide.Plugins
                 if (childOfType != null)
                     return childOfType;
             }
+
             return null;
         }
 
-        private static AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule) =>
-            GetChildOfType<AutoTurret>(vehicleModule);
+        private static AutoTurret GetModuleAutoTurret(BaseVehicleModule vehicleModule)
+        {
+            return GetChildOfType<AutoTurret>(vehicleModule);
+        }
 
-        private static ElectricSwitch GetTurretSwitch(AutoTurret turret) =>
-            GetChildOfType<ElectricSwitch>(turret);
+        private static ElectricSwitch GetTurretSwitch(AutoTurret turret)
+        {
+            return GetChildOfType<ElectricSwitch>(turret);
+        }
 
         private static bool IsNaturalCarSpawn(ModularCar car)
         {
@@ -862,23 +908,33 @@ namespace Oxide.Plugins
             return spawnable != null && spawnable.Population != null;
         }
 
-        private static BaseVehicleModule GetParentVehicleModule(BaseEntity entity) =>
-            entity.GetParentEntity() as BaseVehicleModule;
+        private static BaseVehicleModule GetParentVehicleModule(BaseEntity entity)
+        {
+            return entity.GetParentEntity() as BaseVehicleModule;
+        }
 
-        private static AutoTurret GetParentTurret(BaseEntity entity) =>
-            entity.GetParentEntity() as AutoTurret;
+        private static AutoTurret GetParentTurret(BaseEntity entity)
+        {
+            return entity.GetParentEntity() as AutoTurret;
+        }
 
-        private static void RunOnEntityBuilt(Item turretItem, AutoTurret autoTurret) =>
+        private static void RunOnEntityBuilt(Item turretItem, AutoTurret autoTurret)
+        {
             Interface.CallHook("OnEntityBuilt", turretItem.GetHeldEntity(), autoTurret.gameObject);
+        }
 
         private static void HideInputsAndOutputs(IOEntity ioEntity)
         {
             // Hide the inputs and outputs on the client.
             foreach (var input in ioEntity.inputs)
+            {
                 input.type = IOEntity.IOType.Generic;
+            }
 
             foreach (var output in ioEntity.outputs)
+            {
                 output.type = IOEntity.IOType.Generic;
+            }
         }
 
         private static Quaternion GetIdealTurretRotation(ModularCar car, BaseVehicleModule vehicleModule)
@@ -916,8 +972,10 @@ namespace Oxide.Plugins
                 : null;
         }
 
-        private static BasePlayer FindEntityOwner(BaseEntity entity) =>
-            entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
+        private static BasePlayer FindEntityOwner(BaseEntity entity)
+        {
+            return entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
+        }
 
         private void SetupCarTurret(AutoTurret turret)
         {
@@ -929,7 +987,7 @@ namespace Oxide.Plugins
 
         private AutoTurret DeployAutoTurret(ModularCar car, BaseVehicleModule vehicleModule, Vector3 position, float conditionFraction = 1, ulong ownerId = 0)
         {
-            var autoTurret = GameManager.server.CreateEntity(Prefab_Entity_AutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
+            var autoTurret = GameManager.server.CreateEntity(PrefabEntityAutoTurret, position, GetIdealTurretRotation(car, vehicleModule)) as AutoTurret;
             if (autoTurret == null)
                 return null;
 
@@ -942,7 +1000,7 @@ namespace Oxide.Plugins
             SetupCarTurret(autoTurret);
             AttachTurretSwitch(autoTurret);
 
-            Effect.server.Run(Prefab_Effect_DeployAutoTurret, autoTurret.transform.position);
+            Effect.server.Run(PrefabEffectDeployAutoTurret, autoTurret.transform.position);
 
             return autoTurret;
         }
@@ -953,12 +1011,14 @@ namespace Oxide.Plugins
 
             var turretSwitch = GetTurretSwitch(turret);
             if (turretSwitch != null)
+            {
                 SetupTurretSwitch(turretSwitch);
+            }
         }
 
         private ElectricSwitch AttachTurretSwitch(AutoTurret autoTurret)
         {
-            var turretSwitch = GameManager.server.CreateEntity(Prefab_Entity_ElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
+            var turretSwitch = GameManager.server.CreateEntity(PrefabEntityElectricSwitch, autoTurret.transform.TransformPoint(TurretSwitchPosition), autoTurret.transform.rotation * TurretSwitchRotation) as ElectricSwitch;
             if (turretSwitch == null)
                 return null;
 
@@ -1007,30 +1067,31 @@ namespace Oxide.Plugins
 
         private int GetCarAutoTurretLimit(ModularCar car)
         {
-            var defaultLimit = _pluginConfig.DefaultLimitPerCar;
+            var defaultLimit = _config.DefaultLimitPerCar;
 
             if (car.OwnerID == 0)
                 return defaultLimit;
 
             var ownerIdString = car.OwnerID.ToString();
-
-            if (defaultLimit < 4 && permission.UserHasPermission(ownerIdString, Permission_Limit_4))
+            if (defaultLimit < 4 && permission.UserHasPermission(ownerIdString, PermissionLimit4))
                 return 4;
-            else if (defaultLimit < 3 && permission.UserHasPermission(ownerIdString, Permission_Limit_3))
+            if (defaultLimit < 3 && permission.UserHasPermission(ownerIdString, PermissionLimit3))
                 return 3;
-            else if (defaultLimit < 2 && permission.UserHasPermission(ownerIdString, Permission_Limit_2))
+            if (defaultLimit < 2 && permission.UserHasPermission(ownerIdString, PermissionLimit2))
                 return 2;
 
             return defaultLimit;
         }
 
-        private bool HasPermissionToVehicleModule(string userId, BaseVehicleModule vehicleModule) =>
-            permission.UserHasPermission(userId, Permission_AllModules) ||
-            permission.UserHasPermission(userId, GetAutoTurretPermissionForModule(vehicleModule));
+        private bool HasPermissionToVehicleModule(string userId, BaseVehicleModule vehicleModule)
+        {
+            return permission.UserHasPermission(userId, PermissionAllModules)
+                || permission.UserHasPermission(userId, GetAutoTurretPermissionForModule(vehicleModule));
+        }
 
         private bool ShouldSpawnTurretsWithCar(ModularCar car)
         {
-            var spawnWithCarConfig = _pluginConfig.SpawnWithCarConfig;
+            var spawnWithCarConfig = _config.SpawnWithCarConfig;
             if (!spawnWithCarConfig.Enabled)
                 return false;
 
@@ -1043,16 +1104,18 @@ namespace Oxide.Plugins
             if (!spawnWithCarConfig.OtherCarSpawns.RequirePermission)
                 return true;
 
-            return car.OwnerID != 0 && permission.UserHasPermission(car.OwnerID.ToString(), Permission_SpawnWithCar);
+            return car.OwnerID != 0 && permission.UserHasPermission(car.OwnerID.ToString(), PermissionSpawnWithCar);
         }
 
-        private bool TryGetAutoTurretPositionForModule(BaseVehicleModule vehicleModule, out Vector3 position) =>
-            _pluginConfig.ModulePositions.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out position);
+        private bool TryGetAutoTurretPositionForModule(BaseVehicleModule vehicleModule, out Vector3 position)
+        {
+            return _config.ModulePositions.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out position);
+        }
 
         private int GetAutoTurretChanceForModule(BaseVehicleModule vehicleModule)
         {
             int chance;
-            return _pluginConfig.SpawnWithCarConfig.SpawnChanceByModule.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out chance)
+            return _config.SpawnWithCarConfig.SpawnChanceByModule.TryGetValue(vehicleModule.AssociatedItemDef.shortname, out chance)
                 ? chance
                 : 0;
         }
@@ -1084,12 +1147,13 @@ namespace Oxide.Plugins
             {
                 // Temporarily increase the player inventory capacity to ensure there is enough space.
                 basePlayer.inventory.containerMain.capacity++;
-                var temporaryTurretItem = ItemManager.CreateByItemID(ItemId_AutoTurret);
+                var temporaryTurretItem = ItemManager.CreateByItemID(ItemIdAutoTurret);
                 if (basePlayer.inventory.GiveItem(temporaryTurretItem))
                 {
                     RunOnEntityBuilt(temporaryTurretItem, autoTurret);
                     temporaryTurretItem.RemoveFromContainer();
                 }
+
                 temporaryTurretItem.Remove();
                 basePlayer.inventory.containerMain.capacity--;
             }
@@ -1103,36 +1167,46 @@ namespace Oxide.Plugins
 
         private class DynamicHookSubscriber<T>
         {
+            private CarTurrets _plugin;
             private HashSet<T> _list = new HashSet<T>();
             private string[] _hookNames;
 
-            public DynamicHookSubscriber(params string[] hookNames)
+            public DynamicHookSubscriber(CarTurrets plugin, params string[] hookNames)
             {
+                _plugin = plugin;
                 _hookNames = hookNames;
             }
 
             public void Add(T item)
             {
                 if (_list.Add(item) && _list.Count == 1)
+                {
                     SubscribeAll();
+                }
             }
 
             public void Remove(T item)
             {
                 if (_list.Remove(item) && _list.Count == 0)
+                {
                     UnsubscribeAll();
+                }
             }
 
             public void SubscribeAll()
             {
                 foreach (var hookName in _hookNames)
-                    _pluginInstance.Subscribe(hookName);
+                {
+                    _plugin.Subscribe(hookName);
+                }
             }
 
             public void UnsubscribeAll()
             {
                 foreach (var hookName in _hookNames)
-                    _pluginInstance.Unsubscribe(hookName);
+                {
+                    _plugin.Unsubscribe(hookName);
+                }
             }
         }
 
@@ -1140,7 +1214,55 @@ namespace Oxide.Plugins
 
         #region Configuration
 
-        private class Configuration : SerializableConfiguration
+        [JsonObject(MemberSerialization.OptIn)]
+        private class SpawnWithCarConfig
+        {
+            [JsonProperty("NaturalCarSpawns")]
+            public NaturalCarSpawnsConfig NaturalCarSpawns = new NaturalCarSpawnsConfig();
+
+            [JsonProperty("OtherCarSpawns")]
+            public OtherCarSpawnsConfig OtherCarSpawns = new OtherCarSpawnsConfig();
+
+            [JsonProperty("SpawnChanceByModule")]
+            public Dictionary<string, int> SpawnChanceByModule = new Dictionary<string, int>()
+            {
+                ["vehicle.1mod.cockpit"] = 0,
+                ["vehicle.1mod.cockpit.armored"] = 0,
+                ["vehicle.1mod.cockpit.with.engine"] = 0,
+                ["vehicle.1mod.engine"] = 0,
+                ["vehicle.1mod.flatbed"] = 0,
+                ["vehicle.1mod.passengers.armored"] = 0,
+                ["vehicle.1mod.rear.seats"] = 0,
+                ["vehicle.1mod.storage"] = 0,
+                ["vehicle.1mod.taxi"] = 0,
+                ["vehicle.2mod.flatbed"] = 0,
+                ["vehicle.2mod.fuel.tank"] = 0,
+                ["vehicle.2mod.passengers"] = 0,
+                ["vehicle.2mod.camper"] = 0,
+            };
+
+            public bool Enabled => NaturalCarSpawns.Enabled || OtherCarSpawns.Enabled;
+        }
+
+        [JsonObject(MemberSerialization.OptIn)]
+        private class NaturalCarSpawnsConfig
+        {
+            [JsonProperty("Enabled")]
+            public bool Enabled = false;
+        }
+
+        [JsonObject(MemberSerialization.OptIn)]
+        private class OtherCarSpawnsConfig
+        {
+            [JsonProperty("Enabled")]
+            public bool Enabled = false;
+
+            [JsonProperty("RequirePermission")]
+            public bool RequirePermission = false;
+        }
+
+        [JsonObject(MemberSerialization.OptIn)]
+        private class Configuration : BaseConfiguration
         {
             [JsonProperty("DefaultLimitPerCar")]
             public int DefaultLimitPerCar = 4;
@@ -1182,59 +1304,11 @@ namespace Oxide.Plugins
             };
         }
 
-        private class SpawnWithCarConfig
-        {
-            [JsonProperty("NaturalCarSpawns")]
-            public NaturalCarSpawnsConfig NaturalCarSpawns = new NaturalCarSpawnsConfig();
-
-            [JsonProperty("OtherCarSpawns")]
-            public OtherCarSpawnsConfig OtherCarSpawns = new OtherCarSpawnsConfig();
-
-            [JsonProperty("SpawnChanceByModule")]
-            public Dictionary<string, int> SpawnChanceByModule = new Dictionary<string, int>()
-            {
-                ["vehicle.1mod.cockpit"] = 0,
-                ["vehicle.1mod.cockpit.armored"] = 0,
-                ["vehicle.1mod.cockpit.with.engine"] = 0,
-                ["vehicle.1mod.engine"] = 0,
-                ["vehicle.1mod.flatbed"] = 0,
-                ["vehicle.1mod.passengers.armored"] = 0,
-                ["vehicle.1mod.rear.seats"] = 0,
-                ["vehicle.1mod.storage"] = 0,
-                ["vehicle.1mod.taxi"] = 0,
-                ["vehicle.2mod.flatbed"] = 0,
-                ["vehicle.2mod.fuel.tank"] = 0,
-                ["vehicle.2mod.passengers"] = 0,
-                ["vehicle.2mod.camper"] = 0,
-            };
-
-            [JsonIgnore]
-            public bool Enabled =>
-                NaturalCarSpawns.Enabled || OtherCarSpawns.Enabled;
-        }
-
-        private class NaturalCarSpawnsConfig
-        {
-            [JsonProperty("Enabled")]
-            public bool Enabled = false;
-        }
-
-        private class OtherCarSpawnsConfig
-        {
-            [JsonProperty("Enabled")]
-            public bool Enabled = false;
-
-            [JsonProperty("RequirePermission")]
-            public bool RequirePermission = false;
-        }
-
         private Configuration GetDefaultConfig() => new Configuration();
 
-        #endregion
+        #region Configuration Helpers
 
-        #region Configuration Boilerplate
-
-        private class SerializableConfiguration
+        private class BaseConfiguration
         {
             public string ToJson() => JsonConvert.SerializeObject(this);
 
@@ -1263,7 +1337,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private bool MaybeUpdateConfig(SerializableConfiguration config)
+        private bool MaybeUpdateConfig(BaseConfiguration config)
         {
             var currentWithDefaults = config.ToDictionary();
             var currentRaw = Config.ToDictionary(x => x.Key, x => x.Value);
@@ -1272,7 +1346,7 @@ namespace Oxide.Plugins
 
         private bool MaybeUpdateConfigDict(Dictionary<string, object> currentWithDefaults, Dictionary<string, object> currentRaw)
         {
-            bool changed = false;
+            var changed = false;
 
             foreach (var key in currentWithDefaults.Keys)
             {
@@ -1303,20 +1377,20 @@ namespace Oxide.Plugins
             return changed;
         }
 
-        protected override void LoadDefaultConfig() => _pluginConfig = GetDefaultConfig();
+        protected override void LoadDefaultConfig() => _config = GetDefaultConfig();
 
         protected override void LoadConfig()
         {
             base.LoadConfig();
             try
             {
-                _pluginConfig = Config.ReadObject<Configuration>();
-                if (_pluginConfig == null)
+                _config = Config.ReadObject<Configuration>();
+                if (_config == null)
                 {
                     throw new JsonException();
                 }
 
-                if (MaybeUpdateConfig(_pluginConfig))
+                if (MaybeUpdateConfig(_config))
                 {
                     LogWarning("Configuration appears to be outdated; updating and saving");
                     SaveConfig();
@@ -1333,8 +1407,10 @@ namespace Oxide.Plugins
         protected override void SaveConfig()
         {
             Log($"Configuration changes saved to {Name}.json");
-            Config.WriteObject(_pluginConfig, true);
+            Config.WriteObject(_config, true);
         }
+
+        #endregion
 
         #endregion
 
@@ -1390,6 +1466,7 @@ namespace Oxide.Plugins
                 [Lang.RemoveAllSuccess] = "Removed all {0} car turrets.",
                 [Lang.InfoPowerRequiresEngine] = "The turret will power on when the car engine starts."
             }, this, "en");
+
             //Adding translation in portuguese brazil
             lang.RegisterMessages(new Dictionary<string, string>
             {
