@@ -32,6 +32,7 @@ Deploying an auto turret to a car module will consume an auto turret item from t
 
 - `carturrets.deploy.command` -- Allows the player to use the `carturret` command. Note: The player also requires module-specific permissions for that command to work.
 - `carturrets.deploy.inventory` -- Allows the player to deploy an auto turret to a vehicle module by clicking and dragging an auto turret item onto a vehicle module item in a car's inventory while editing the car at a lift. Note: The player also requires module-specific permissions for this to work.
+- `carturrets.control` -- Allows remotely controlling car turrets. Only necessary while the `RequirePermissionToControlCarTurrets` config option is set to `true`.
 - `carturrets.spawnwithcar` -- Cars owned by players with this permission will spawn with turrets automatically added to each module they have permission to, up to the limit they are allowed. The chance for each module to spawn with a turret is determined by the plugin configuration under `SpawnWithCar->SpawnChanceByModule`.
   - Only applicable if the plugin configuration for `SpawnWithCar->OtherCarSpawns->Enabled` is `true`, and only necessary if `SpawnWithCar->OtherCarSpawns->RequirePermission` is `true`.
 - `carturrets.removall` -- Allows the player to use the `carturrets.removall` command.
@@ -65,6 +66,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 
 ```json
 {
+  "RequirePermissionToControlCarTurrets": false,
   "DefaultLimitPerCar": 4,
   "EnableTurretPickup": true,
   "OnlyPowerTurretsWhileEngineIsOn": false,
@@ -165,6 +167,7 @@ Car ownership is determined by the `OwnerID` property of the car, which is usual
 }
 ```
 
+- `RequirePermissionToControlCarTurrets` (`true` or `false`) -- Determines whether players require the `carturrets.control` permission to remotely control turrets attached to cars. While `true`, anybody can control car turrets. While a player is prohibited from controlling car turrets, they can still view the turrets perspective.
 - `DefaultLimitPerCar` -- The maximum number of auto turrets allowed per car. Cars owned by players with additional permissions may have a higher value. Regardless of this value, the number of auto turrets cannot exceed the number of modules on the car.
   - Note: You can also reduce the practical limit of auto turrets per car by restricting which modules they can be deployed to. For example, if you only allow auto turrets to be deployed to flatbed modules, a 2-socket car can have at most one auto turret (assuming it's driveable). For longer cars, players will have to choose between more turrets and other utilities. You can also restrict turrets to only 2-socket modules.
 - `EnableTurretPickup` (`true` or `false`) -- While `false`, car turrets cannot be picked up with a hammer or with the RemoverTool pugin, and removing a module from a car will destroy the turret without adding an auto turret item to the player inventory.

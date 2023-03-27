@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.5.1")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.0")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -25,6 +25,7 @@ namespace Oxide.Plugins
         private const string PermissionDeployCommand = "carturrets.deploy.command";
         private const string PermissionDeployInventory = "carturrets.deploy.inventory";
         private const string PermissionFree = "carturrets.free";
+        private const string PermissionControl = "carturrets.control";
         private const string PermissionRemoveAll = "carturrets.removeall";
 
         private const string PermissionLimit2 = "carturrets.limit.2";
@@ -61,6 +62,7 @@ namespace Oxide.Plugins
             permission.RegisterPermission(PermissionDeployCommand, this);
             permission.RegisterPermission(PermissionDeployInventory, this);
             permission.RegisterPermission(PermissionFree, this);
+            permission.RegisterPermission(PermissionControl, this);
             permission.RegisterPermission(PermissionRemoveAll, this);
 
             permission.RegisterPermission(PermissionLimit2, this);
@@ -108,6 +110,15 @@ namespace Oxide.Plugins
                 dynamicHookNames.Add(nameof(OnEngineStartFinished));
                 dynamicHookNames.Add(nameof(OnEngineStopped));
                 dynamicHookNames.Add(nameof(OnTurretStartup));
+            }
+
+            if (!_config.RequirePermissionToControl)
+            {
+                Unsubscribe(nameof(OnBookmarkControlStarted));
+            }
+            else
+            {
+                dynamicHookNames.Add(nameof(OnBookmarkControlStarted));
             }
 
             _carTurretTracker = new DynamicHookSubscriber<uint>(this, dynamicHookNames.ToArray());
@@ -515,6 +526,25 @@ namespace Oxide.Plugins
             return null;
         }
 
+        private void OnBookmarkControlStarted(ComputerStation station, BasePlayer player, string bookmarkName, AutoTurret turret)
+        {
+            var vehicleModule = GetParentVehicleModule(turret);
+            if (vehicleModule == null)
+                return;
+
+            if (!RCUtils.HasController(turret, player))
+                return;
+
+            if (!HasPermissionToControl(player))
+            {
+                RCUtils.RemoveController(turret);
+                RCUtils.AddFakeViewer(turret);
+                RCUtils.AddViewer(turret, player);
+                RCUtils.RemoveController(turret);
+                station.SetFlag(ComputerStation.Flag_HasFullControl, false);
+            }
+        }
+
         // This is only subscribed while config option EnableTurretPickup is false.
         private object CanPickupEntity(BasePlayer player, AutoTurret turret)
         {
@@ -778,7 +808,34 @@ namespace Oxide.Plugins
 
         #endregion
 
-        #region Helper Methods
+        #region Helpers
+
+        private static class RCUtils
+        {
+            public static bool HasController(IRemoteControllable controllable, BasePlayer player)
+            {
+                return controllable.ControllingViewerId?.SteamId == player.userID;
+            }
+
+            public static void RemoveController(IRemoteControllable controllable)
+            {
+                var controllerId = controllable.ControllingViewerId;
+                if (controllerId.HasValue)
+                {
+                    controllable.StopControl(controllerId.Value);
+                }
+            }
+
+            public static bool AddViewer(IRemoteControllable controllable, BasePlayer player)
+            {
+                return controllable.InitializeControl(new CameraViewerId(player.userID, 0));
+            }
+
+            public static bool AddFakeViewer(IRemoteControllable controllable)
+            {
+                return controllable.InitializeControl(new CameraViewerId());
+            }
+        }
 
         private static bool DeployWasBlocked(BaseVehicleModule vehicleModule, BasePlayer basePlayer, bool automatedDeployment = false)
         {
@@ -975,6 +1032,14 @@ namespace Oxide.Plugins
         private static BasePlayer FindEntityOwner(BaseEntity entity)
         {
             return entity.OwnerID != 0 ? BasePlayer.FindByID(entity.OwnerID) : null;
+        }
+
+        private bool HasPermissionToControl(BasePlayer player)
+        {
+            if (!_config.RequirePermissionToControl)
+                return true;
+
+            return permission.UserHasPermission(player.UserIDString, PermissionControl);
         }
 
         private void SetupCarTurret(AutoTurret turret)
@@ -1264,6 +1329,9 @@ namespace Oxide.Plugins
         [JsonObject(MemberSerialization.OptIn)]
         private class Configuration : BaseConfiguration
         {
+            [JsonProperty("RequirePermissionToControlCarTurrets")]
+            public bool RequirePermissionToControl;
+
             [JsonProperty("DefaultLimitPerCar")]
             public int DefaultLimitPerCar = 4;
 
