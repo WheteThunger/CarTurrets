@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.6.0")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.1")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -50,7 +50,7 @@ namespace Oxide.Plugins
 
         private readonly object False = false;
 
-        private DynamicHookSubscriber<uint> _carTurretTracker;
+        private DynamicHookSubscriber<NetworkableId> _carTurretTracker;
         private ProtectionProperties ImmortalProtection;
 
         #endregion
@@ -121,7 +121,7 @@ namespace Oxide.Plugins
                 dynamicHookNames.Add(nameof(OnBookmarkControlStarted));
             }
 
-            _carTurretTracker = new DynamicHookSubscriber<uint>(this, dynamicHookNames.ToArray());
+            _carTurretTracker = new DynamicHookSubscriber<NetworkableId>(this, dynamicHookNames.ToArray());
             _carTurretTracker.UnsubscribeAll();
         }
 
@@ -212,7 +212,7 @@ namespace Oxide.Plugins
             });
         }
 
-        private object CanMoveItem(Item item, PlayerInventory playerInventory, uint targetContainerId, int targetSlot, int amount)
+        private object CanMoveItem(Item item, PlayerInventory playerInventory, ItemContainerId targetContainerId, int targetSlot, int amount)
         {
             if (item == null || playerInventory == null)
                 return null;
@@ -235,7 +235,7 @@ namespace Oxide.Plugins
             }
 
             // Player is moving an item to the loot panel (module inventory is at position 1).
-            var targetContainer = targetContainerId != 0
+            var targetContainer = targetContainerId.Value != 0
                 ? playerInventory.loot.FindContainer(targetContainerId)
                 : playerInventory.loot.containers.ElementAtOrDefault(1);
 
