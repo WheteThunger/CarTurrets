@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.6.1")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.2")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -895,7 +895,7 @@ namespace Oxide.Plugins
 
         private static Item FindPlayerAutoTurretItem(BasePlayer basePlayer)
         {
-            return basePlayer.inventory.FindItemID(ItemIdAutoTurret);
+            return basePlayer.inventory.FindItemByItemID(ItemIdAutoTurret);
         }
 
         private static Item CreateItemFromAutoTurret(AutoTurret autoTurret)
