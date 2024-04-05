@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.6.2")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.3")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -44,7 +44,7 @@ namespace Oxide.Plugins
 
         private const int ItemIdAutoTurret = -2139580305;
 
-        private static readonly Vector3 TurretSwitchPosition = new Vector3(0, -0.64f, -0.32f);
+        private static readonly Vector3 TurretSwitchPosition = new Vector3(0, 0.36f, -0.32f);
         private static readonly Quaternion TurretBackwardRotation = Quaternion.Euler(0, 180, 0);
         private static readonly Quaternion TurretSwitchRotation = Quaternion.Euler(0, 180, 0);
 
@@ -1102,6 +1102,17 @@ namespace Oxide.Plugins
             RemoveColliders<Collider>(electricSwitch);
             RemoveGroundWatch(electricSwitch);
             HideInputsAndOutputs(electricSwitch);
+
+            if (electricSwitch.HasParent())
+            {
+                var transform = electricSwitch.transform;
+                if (transform.localPosition != TurretSwitchPosition)
+                {
+                    transform.localPosition = TurretSwitchPosition;
+                    electricSwitch.InvalidateNetworkCache();
+                    electricSwitch.SendNetworkUpdate_Position();
+                }
+            }
         }
 
         private bool CanAccessVehicle(BaseVehicle vehicle, BasePlayer basePlayer, bool provideFeedback = true)
