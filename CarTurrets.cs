@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.6.3")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.4")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -503,6 +503,9 @@ namespace Oxide.Plugins
         {
             if (turret == null || target == null || GetParentVehicleModule(turret) == null)
                 return null;
+
+            if (target is Chicken or FarmableAnimal)
+                return False;
 
             if (!_config.TargetAnimals && target is BaseAnimalNPC)
                 return False;
