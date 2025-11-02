@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.6.4")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.5")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -1208,11 +1208,8 @@ namespace Oxide.Plugins
             // Other plugins may have already automatically authorized the player.
             if (!autoTurret.IsAuthed(basePlayer))
             {
-                autoTurret.authorizedPlayers.Add(new ProtoBuf.PlayerNameID
-                {
-                    userid = basePlayer.userID,
-                    username = basePlayer.displayName
-                });
+                autoTurret.authorizedPlayers.Add(basePlayer.userID);
+                autoTurret.UpdateMaxAuthCapacity();
                 autoTurret.SendNetworkUpdate();
             }
 
