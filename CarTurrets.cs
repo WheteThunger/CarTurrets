@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Car Turrets", "WhiteThunder", "1.6.5")]
+    [Info("Car Turrets", "WhiteThunder", "1.6.6")]
     [Description("Allows players to deploy auto turrets onto modular cars.")]
     internal class CarTurrets : CovalencePlugin
     {
@@ -544,7 +544,8 @@ namespace Oxide.Plugins
                 RCUtils.AddFakeViewer(turret);
                 RCUtils.AddViewer(turret, player);
                 RCUtils.RemoveController(turret);
-                station.SetFlag(ComputerStation.Flag_HasFullControl, false);
+                using var flagsScope = station.StartSetFlags(BaseEntity.FlagsUpdateMode.SendNetworkUpdate_Flags);
+                flagsScope.Set(ComputerStation.Flag_HasFullControl, false);
             }
         }
 
@@ -1059,7 +1060,7 @@ namespace Oxide.Plugins
             if (autoTurret == null)
                 return null;
 
-            autoTurret.SetFlag(IOEntity.Flag_HasPower, true);
+            autoTurret.SetFlagLocal(IOEntity.Flag_HasPower, true);
             autoTurret.SetParent(vehicleModule);
             autoTurret.OwnerID = ownerId;
             autoTurret.Spawn();
@@ -1099,8 +1100,9 @@ namespace Oxide.Plugins
 
         private void SetupTurretSwitch(ElectricSwitch electricSwitch)
         {
+            using var flagsScope = electricSwitch.StartSetFlags(BaseEntity.FlagsUpdateMode.SendNetworkUpdate_Flags);
+            flagsScope.Set(IOEntity.Flag_HasPower, true);
             electricSwitch.pickup.enabled = false;
-            electricSwitch.SetFlag(IOEntity.Flag_HasPower, true);
             electricSwitch.baseProtection = ImmortalProtection;
             RemoveColliders<Collider>(electricSwitch);
             RemoveGroundWatch(electricSwitch);
